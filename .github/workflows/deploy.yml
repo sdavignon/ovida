@@ -1,0 +1,43 @@
+name: Deploy to DreamHost
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Upload site via SFTP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare deployment package
+        run: |
+          mkdir -p deploy
+          rsync -av --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='deploy/' \
+            ./ deploy/
+
+      - name: Deploy to DreamHost SFTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.SFTP_HOST }}
+          username: ${{ secrets.SFTP_USERNAME }}
+          password: ${{ secrets.SFTP_PASSWORD }}
+          private-key: ${{ secrets.SFTP_SSH_KEY }}
+          protocol: sftp
+          port: ${{ secrets.SFTP_PORT != '' && secrets.SFTP_PORT || '22' }}
+          server-dir: ovida.1976.cloud/
+          local-dir: deploy/
+          dry-run: false
+          exclude: |
+            **/.git*
+            **/.github*
+            **/.DS_Store
+            **/node_modules
