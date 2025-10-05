@@ -1,55 +1,68 @@
-# Ovida Deployment
+# SFTP Deployment Pipeline
 
-This repository is configured to deploy the site to DreamHost (directory `ovida.1976.cloud`) via GitHub Actions. The workflow packages the repository contents and publishes them to the remote server over SFTP whenever changes are merged into `main` or when triggered manually.
+This repository ships with a reusable GitHub Actions workflow that bundles the project files and deploys them to **any** SFTP-accessible web host. It can run automatically on every push to `main`, or manually with custom connection details.
 
 ## Repository structure
 
-- `.github/workflows/deploy.yml` – CI/CD workflow that builds the deployment package and publishes it to DreamHost via SFTP.
+- `.github/workflows/deploy.yml` – CI/CD workflow that builds the deployment package and publishes it to the remote server over SFTP.
 - `.gitignore` – prevents the temporary `deploy/` directory created during the workflow from being committed.
 
-## Requirements
+## Configuration
 
-1. The DreamHost SFTP account must already exist. For this project the target path is `ovida.1976.cloud/`.
-2. GitHub repository secrets must be configured so that the workflow can connect to the remote server securely.
+### Required secrets / variables
 
-### Required GitHub secrets
+Create the following entries in `Settings → Secrets and variables → Actions`:
 
-Create the following secrets in the GitHub repository settings (`Settings → Secrets and variables → Actions`).
+| Name | Type | Description |
+|------|------|-------------|
+| `SFTP_HOST` | Secret or variable | Default hostname of the SFTP server. |
+| `SFTP_USERNAME` | Secret or variable | Default username used for authentication. |
+| `SFTP_PASSWORD` | Secret | Password for the SFTP user (leave empty when using SSH keys). |
+| `SFTP_SSH_KEY` | Secret | Private SSH key (PEM format). Leave empty when using passwords. |
+| `SFTP_PORT` | Secret or variable | Optional port override (defaults to `22`). |
+| `SFTP_REMOTE_DIR` | Secret or variable | Remote directory to upload into (e.g. `/var/www/html/`). |
 
-| Secret name | Description |
-|-------------|-------------|
-| `SFTP_HOST` | DreamHost hostname (`vps66687.dreamhostps.com`). |
-| `SFTP_USERNAME` | DreamHost SFTP username (`dh_rt2c39`). |
-| `SFTP_PASSWORD` | Password for the SFTP account (leave blank if using SSH key auth). |
-| `SFTP_PORT` | Optional port override (defaults to `22` if left empty). |
-| `SFTP_SSH_KEY` | Optional private SSH key (PEM format, leave blank when using passwords). |
+> **Tip:** Provide **either** `SFTP_PASSWORD` **or** `SFTP_SSH_KEY`. Supplying both will prefer the workflow dispatch input or secret for the SSH key.
 
-> **Note**: Provide **either** `SFTP_PASSWORD` **or** `SFTP_SSH_KEY`. The workflow supports both methods but only one is required.
+Secrets take precedence over variables for sensitive values. Use repository variables for non-sensitive defaults if you prefer to keep the host or username visible.
+
+### Manual overrides via workflow dispatch
+
+When triggering the workflow from `Actions → Deploy via SFTP → Run workflow`, you can override any of the connection parameters:
+
+- **SFTP host**
+- **SFTP port**
+- **SFTP username**
+- **SFTP password**
+- **SFTP private SSH key**
+- **Remote target directory**
+
+Leave a field blank to fall back to the stored secret/variable.
 
 ## How the workflow works
 
 1. **Checkout** – pulls the repository contents.
 2. **Prepare deployment package** – copies repository files into a temporary `deploy/` directory, excluding Git metadata and workflow files.
-3. **Deploy** – uploads the `deploy/` directory to DreamHost using SFTP, synchronising and deleting files that no longer exist in the repository.
+3. **Deploy** – uploads the `deploy/` directory to the configured SFTP destination, deleting files on the server that no longer exist locally.
 
-## Running the workflow manually
+## Running the workflow
 
-1. Push your changes to the `main` branch or create a pull request and merge it into `main`.
-2. Alternatively, from the GitHub repository UI go to `Actions → Deploy to DreamHost → Run workflow` to trigger it on demand (you can select any branch when manually running).
+- Push or merge into the `main` branch to trigger an automatic deployment using the saved secrets/variables.
+- Trigger the workflow manually from the GitHub Actions tab to provide alternative credentials or deploy from another branch.
 
 ## Verifying the deployment
 
-- Once the workflow succeeds, access `https://ovida.1976.cloud/` to confirm the latest version is served.
-- You can also inspect the workflow logs under the `Actions` tab for upload details.
+- Once the workflow succeeds, browse to your site's URL to confirm the latest version is available.
+- Inspect the job logs under the `Actions` tab for upload details and confirmation of the target directory.
 
-## Local deployment testing (optional)
+## Local validation (optional)
 
-If you need to validate SFTP credentials locally, you can run the following command (requires `lftp`):
+You can test SFTP credentials locally with `lftp` or a similar client:
 
 ```bash
 lftp -u "$SFTP_USERNAME","$SFTP_PASSWORD" sftp://$SFTP_HOST
 ```
 
-Once connected, you can navigate to `ovida.1976.cloud/` and verify permissions.
+After connecting, change to the configured remote directory and confirm that you have write permissions.
 
-Remember never to commit secrets to the repository; always use GitHub Secrets.
+Never commit credentials to the repository; always store them as GitHub secrets or variables.
