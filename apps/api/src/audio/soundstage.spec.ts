@@ -1,7 +1,13 @@
 import { afterEach, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { planSoundstage } from './soundstage';
 import type { SynthesisOpts } from './engine';
-import * as crypto from 'node:crypto';
+
+const randomUUIDMock = vi.hoisted(() => vi.fn<string, []>());
+
+vi.mock('node:crypto', () => ({
+  randomUUID: randomUUIDMock,
+}));
+
+import { planSoundstage } from './soundstage';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -11,6 +17,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  randomUUIDMock.mockReset();
 });
 
 afterAll(() => {
@@ -30,9 +37,12 @@ describe('planSoundstage', () => {
   it('selects matching cues and ambience based on keywords', () => {
     const uuidSequence = ['id-1', 'id-2'];
     let call = 0;
-    vi.spyOn(crypto, 'randomUUID').mockImplementation(() => uuidSequence[call++] ?? 'fallback');
+    randomUUIDMock.mockImplementation(() => uuidSequence[call++] ?? 'fallback');
 
-    const result = planSoundstage('The storm thunder shakes the door while lightning flashes.', baseOpts);
+    const result = planSoundstage(
+      'The storm thunder shakes the door while lightning flashes in a shadowy midnight alley.',
+      baseOpts,
+    );
 
     expect(result.ambience?.id).toBe('noir-alley');
     expect(result.cues).toHaveLength(2);
@@ -55,7 +65,7 @@ describe('planSoundstage', () => {
   });
 
   it('falls back to default ambience and inspiration when no keywords match', () => {
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue('unused');
+    randomUUIDMock.mockReturnValue('unused');
 
     const result = planSoundstage('A calm narration with no special events.', {
       ...baseOpts,
