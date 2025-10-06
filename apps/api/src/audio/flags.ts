@@ -3,6 +3,9 @@ export type AudioMode = "files" | "realtime" | "auto";
 export function getAudioMode(): AudioMode {
   const m = (process.env.AUDIO_MODE || "auto").toLowerCase();
   return ("files" === m || "realtime" === m || "auto" === m) ? (m as AudioMode) : "auto";
+  return (["files", "realtime", "auto"] as const).includes(m as AudioMode)
+    ? (m as AudioMode)
+    : "auto";
 }
 
 export function realtimeEnabled(): boolean {
@@ -13,3 +16,4 @@ export function isProdLike(): boolean {
   const env = (process.env.NODE_ENV || "development").toLowerCase();
   return env === "staging" || env === "production" || env === "prod";
 }
+

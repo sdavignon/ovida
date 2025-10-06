@@ -1,0 +1,50 @@
+version: "3.9"
+services:
+  supabase:
+    image: supabase/supabase-local:latest
+    container_name: ovida-supabase
+    restart: unless-stopped
+    environment:
+      SUPABASE_URL: http://localhost:54321
+    volumes:
+      - ./supabase:/supabase
+    ports:
+      - "54321:54321"
+      - "54322:54322"
+      - "54323:54323"
+      - "54324:54324"
+      - "54325:54325"
+      - "54326:54326"
+
+  api:
+    build:
+      context: ./apps/api
+    depends_on:
+      - supabase
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - SUPABASE_URL=http://supabase:54321
+      - SUPABASE_SERVICE_ROLE_KEY=replace_me
+      - SUPABASE_ANON_KEY=replace_me
+      - ELEVENLABS_API_KEY=replace_me
+      - ELEVENLABS_VOICE_ID=placeholder_voice
+      - ELEVENLABS_MODEL=eleven_turbo_v2
+      - ELEVENLABS_STREAMING=off
+    ports:
+      - "4000:4000"
+    command: pnpm dev
+
+  ws:
+    build:
+      context: ./apps/ws
+    depends_on:
+      - supabase
+    environment:
+      - NODE_ENV=development
+      - PORT=4001
+      - SUPABASE_URL=http://supabase:54321
+      - SUPABASE_SERVICE_ROLE_KEY=replace_me
+    ports:
+      - "4001:4001"
+    command: pnpm dev

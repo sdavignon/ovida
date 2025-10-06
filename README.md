@@ -1,9 +1,34 @@
+# Ovida Monorepo
+
+"The story that lives" — a deterministic, replayable, AI-assisted narrative platform. This monorepo provides:
 # SFTP Deployment Pipeline
 
 This repository ships with a reusable GitHub Actions workflow that bundles the project files and deploys them to **any** SFTP-accessible web host. It can run automatically on every push to `main`, or manually with custom connection details.
 
-## Repository structure
+- **apps/api** – Fastify OpenAPI-first service backed by Supabase Postgres and Auth
+- **apps/ws** – WebSocket coordinator for live rooms and voting atop Supabase Realtime
+- **apps/app** – Expo client (web + native) that drives demo, playback, and rooms
+- **packages/schemas** – Shared zod models for beats, replays, and policy definitions
+- **packages/sdk** – Typed SDK generated from the OpenAPI contract
+- **supabase/** – SQL migrations, seeds, and RLS policies for core data structures
 
+## Getting Started
+
+1. Install dependencies
+
+```bash
+pnpm install
+```
+
+2. Start Supabase locally
+
+```bash
+make supabase.up
+make supabase.mig
+make seed
+```
+
+3. Run services
 - `.github/workflows/deploy.yml` – CI/CD workflow that builds the deployment package and publishes it to the remote server over SFTP.
 - `.gitignore` – prevents the temporary `deploy/` directory created during the workflow from being committed.
 
@@ -60,9 +85,12 @@ Leave a field blank to fall back to the stored secret/variable.
 You can test SFTP credentials locally with `lftp` or a similar client:
 
 ```bash
-lftp -u "$SFTP_USERNAME","$SFTP_PASSWORD" sftp://$SFTP_HOST
+make dev
 ```
 
+4. Launch the Expo app (`pnpm --filter @ovida/app dev`) and explore the 3-step demo.
+
+See `.env.example` for required environment variables.
 After connecting, change to the configured remote directory and confirm that you have write permissions.
 
 Never commit credentials to the repository; always store them as GitHub secrets or variables.
