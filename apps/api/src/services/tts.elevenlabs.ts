@@ -1,25 +1,30 @@
 import type { Env } from '../env';
 import type { Beat } from '@ovida/schemas';
+import { ElevenLabsEngine } from '../audio/engines/elevenlabs';
 
-type AudioResponse = {
-  url: string;
-  provider: 'elevenlabs' | 'mock';
-};
+const engine = new ElevenLabsEngine();
 
-export const synthesizeBeat = async (
-  env: Env,
-  beat: Beat
-): Promise<AudioResponse> => {
-  if (env.ELEVENLABS_STREAMING === 'off' || !env.ELEVENLABS_API_KEY) {
-    return {
-      url: `https://dummy.audio/beat-${beat.index}.mp3`,
-      provider: 'mock',
-    };
+export const synthesizeBeat = async (env: Env, beat: Beat) => {
+  const synth = await engine.synthesize(beat.narration, {
+    storyId: 'demo-story',
+    seed: 0,
+    beatIdx: beat.index,
+    modelVersion: 'demo-llm-v1',
+    policyVersion: 'demo-policy-v1',
+    canonVersion: 'demo-canon-v1',
+    voiceId: env.ELEVENLABS_VOICE_ID ?? undefined,
+    persist: false,
+  });
+
+  if (synth.kind !== 'files') {
+    throw new Error('Expected files for demo synthesis');
   }
 
-  // In real implementation we would stream to ElevenLabs here.
   return {
-    url: `https://api.elevenlabs.io/v1/audio/${beat.index}`,
-    provider: 'elevenlabs',
+    provider: synth.provider,
+    urls: synth.urls,
+    mime: synth.mime,
+    soundstage: synth.soundstage,
+    narrator: synth.narrator,
   };
 };

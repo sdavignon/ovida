@@ -1,4 +1,10 @@
-import type { SynthResult } from './types';
+import type {
+  SynthResult,
+  NarrationProfile,
+  RealtimeSessionDescriptor,
+  FileSynthResult,
+  StreamSynthResult,
+} from './types';
 
 // Unified audio synthesis contract
 export type SynthesisOpts = {
@@ -14,7 +20,7 @@ export type SynthesisOpts = {
   persist?: boolean; // default true for Runs
 };
 
-export type { SynthResult };
+export type { SynthResult, NarrationProfile, RealtimeSessionDescriptor, FileSynthResult, StreamSynthResult };
 
 export interface AudioEngine {
   name(): string;
