@@ -1,42 +1,59 @@
 # Ovida Monorepo
 
-"The story that lives" — a deterministic, replayable, AI-assisted narrative platform. This monorepo provides:
-# SFTP Deployment Pipeline
+"The story that lives" — a deterministic, replayable, AI-assisted narrative platform. This monorepo provides the mobile, web, and backend pieces that power Ovida experiences.
 
-This repository ships with a reusable GitHub Actions workflow that bundles the project files and deploys them to **any** SFTP-accessible web host. It can run automatically on every push to `main`, or manually with custom connection details.
+## Applications
 
-- **apps/api** – Fastify OpenAPI-first service backed by Supabase Postgres and Auth
-- **apps/ws** – WebSocket coordinator for live rooms and voting atop Supabase Realtime
-- **apps/app** – Expo client (web + native) that drives demo, playback, and rooms
-- **packages/schemas** – Shared zod models for beats, replays, and policy definitions
-- **packages/sdk** – Typed SDK generated from the OpenAPI contract
-- **supabase/** – SQL migrations, seeds, and RLS policies for core data structures
+The workspace is managed with pnpm and contains:
 
-## Getting Started
+- **apps/api** – Fastify HTTP API backed by Supabase for persistence and auth.
+- **apps/ws** – WebSocket coordinator for live rooms and voting.
+- **apps/app** – Expo client for iOS, Android, and web.
+- **apps/web** – Next.js operator console for demos, replays, rooms, and admin tooling.
+- **packages/schemas** – Shared Zod models.
+- **packages/sdk** – Generated SDK mirroring the HTTP contract.
+- **supabase/** – SQL migrations, seeds, and RLS policies.
+
+## Prerequisites
+
+- Node.js 18+
+- pnpm 8 (install with `corepack enable` or from https://pnpm.io)
+- Docker (for local Supabase)
+
+## Getting started
 
 1. Install dependencies
 
-```bash
-pnpm install
-```
+   ```bash
+   pnpm install
+   ```
 
 2. Start Supabase locally
 
-```bash
-make supabase.up
-make supabase.mig
-make seed
-```
+   ```bash
+   make supabase.up
+   make supabase.mig
+   make seed
+   ```
 
-3. Run services
-- `.github/workflows/deploy.yml` – CI/CD workflow that builds the deployment package and publishes it to the remote server over SFTP.
-- `.gitignore` – prevents the temporary `deploy/` directory created during the workflow from being committed.
+3. Run the services you need
 
-## Configuration
+   ```bash
+   pnpm --filter @ovida/api dev      # REST API
+   pnpm --filter @ovida/ws dev       # WebSocket server
+   pnpm --filter @ovida/web dev      # Next.js operator console
+   pnpm --filter @ovida/app dev      # Expo app (press w/i/a to open targets)
+   ```
 
-### Required secrets / variables
+See `.env.example` for the variables the services expect.
 
-Create the following entries in `Settings → Secrets and variables → Actions`:
+## Deployment options
+
+### GitHub Actions SFTP workflow
+
+The repository includes `.github/workflows/deploy.yml`, a reusable workflow that bundles the repository and pushes it to any SFTP-accessible host. It can run automatically on every push to `main` or be dispatched manually with different credentials.
+
+Store the following values under **Settings → Secrets and variables → Actions** to supply defaults:
 
 | Name | Type | Description |
 |------|------|-------------|
@@ -47,50 +64,62 @@ Create the following entries in `Settings → Secrets and variables → Actions`
 | `SFTP_PORT` | Secret or variable | Optional port override (defaults to `22`). |
 | `SFTP_REMOTE_DIR` | Secret or variable | Remote directory to upload into (e.g. `/var/www/html/`). |
 
-> **Tip:** Provide **either** `SFTP_PASSWORD` **or** `SFTP_SSH_KEY`. Supplying both will prefer the workflow dispatch input or secret for the SSH key.
+> Provide **either** `SFTP_PASSWORD` **or** `SFTP_SSH_KEY`. Supplying both prefers the SSH key supplied through workflow dispatch or secrets.
 
-Secrets take precedence over variables for sensitive values. Use repository variables for non-sensitive defaults if you prefer to keep the host or username visible.
+When triggering the workflow manually from **Actions → Deploy via SFTP → Run workflow**, you can override any of the connection parameters (host, port, username, password, SSH key, remote directory). Leave fields blank to fall back to the stored secrets or variables.
 
-### Manual overrides via workflow dispatch
+Under the hood the workflow:
 
-When triggering the workflow from `Actions → Deploy via SFTP → Run workflow`, you can override any of the connection parameters:
+1. Checks out the repository.
+2. Copies the contents into a temporary `deploy/` directory, excluding Git metadata and workflow files.
+3. Uploads the bundle to the configured SFTP destination, deleting files on the server that no longer exist locally.
 
-- **SFTP host**
-- **SFTP port**
-- **SFTP username**
-- **SFTP password**
-- **SFTP private SSH key**
-- **Remote target directory**
+After the run succeeds, browse to your site's URL to confirm the new build and inspect the workflow logs for upload details.
 
-Leave a field blank to fall back to the stored secret/variable.
+### DreamHost / SSH deployment script
 
-## How the workflow works
+`scripts/deploy/dreamhost.sh` automates deployments to shell hosts (such as DreamHost). The script:
 
-1. **Checkout** – pulls the repository contents.
-2. **Prepare deployment package** – copies repository files into a temporary `deploy/` directory, excluding Git metadata and workflow files.
-3. **Deploy** – uploads the `deploy/` directory to the configured SFTP destination, deleting files on the server that no longer exist locally.
+1. Connects to the remote host over SSH.
+2. Clones or updates the public repository (`https://github.com/ovida/ovida.git` by default).
+3. Installs dependencies with `pnpm install --frozen-lockfile`.
+4. Builds the Next.js operator console in production mode.
+5. Copies the standalone build into the specified site directory (defaults to `~/ovida.1976.cloud`).
 
-## Running the workflow
-
-- Push or merge into the `main` branch to trigger an automatic deployment using the saved secrets/variables.
-- Trigger the workflow manually from the GitHub Actions tab to provide alternative credentials or deploy from another branch.
-
-## Verifying the deployment
-
-- Once the workflow succeeds, browse to your site's URL to confirm the latest version is available.
-- Inspect the job logs under the `Actions` tab for upload details and confirmation of the target directory.
-
-## Local validation (optional)
-
-You can test SFTP credentials locally with `lftp` or a similar client:
+Run it from your machine:
 
 ```bash
-make dev
+./scripts/deploy/dreamhost.sh deployer@ovida.1976.cloud
 ```
 
-4. Launch the Expo app (`pnpm --filter @ovida/app dev`) and explore the 3-step demo.
+Optional arguments let you override the target directory and checkout folder:
 
-See `.env.example` for required environment variables.
-After connecting, change to the configured remote directory and confirm that you have write permissions.
+```bash
+./scripts/deploy/dreamhost.sh deployer@ovida.1976.cloud ~/ovida.1976.cloud ~/ovida-deploy
+```
 
-Never commit credentials to the repository; always store them as GitHub secrets or variables.
+Environment variables `REPO_URL` and `BRANCH` customise the repository clone, e.g. `BRANCH=work ./scripts/deploy/dreamhost.sh deployer@ovida.1976.cloud`.
+
+**Remote host requirements**
+
+- SSH access with Git available.
+- Node.js 18+ and npm. The script installs pnpm using Corepack or npm when required.
+- Enough space for both the checkout directory and the deployed standalone build.
+
+After the script completes, start the server from the site directory:
+
+```bash
+cd ~/ovida.1976.cloud
+NODE_ENV=production PORT=3000 node server.js
+```
+
+Adjust the port to match your process manager or proxy configuration.
+
+## Testing
+
+Use the workspace scripts provided by TurboRepo:
+
+```bash
+pnpm lint
+pnpm test
+```
