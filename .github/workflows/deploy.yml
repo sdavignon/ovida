@@ -1,10 +1,35 @@
-name: Deploy to DreamHost
+name: Deploy via SFTP
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      sftp_host:
+        description: "Override SFTP host (optional)"
+        required: false
+        type: string
+      sftp_port:
+        description: "Override SFTP port (optional)"
+        required: false
+        type: string
+      sftp_username:
+        description: "Override SFTP username (optional)"
+        required: false
+        type: string
+      sftp_password:
+        description: "Override SFTP password (optional, ignored when SSH key provided)"
+        required: false
+        type: string
+      sftp_private_key:
+        description: "Override SFTP private SSH key (optional)"
+        required: false
+        type: string
+      sftp_remote_dir:
+        description: "Override remote target directory (optional)"
+        required: false
+        type: string
 
 jobs:
   deploy:
@@ -24,16 +49,16 @@ jobs:
             --exclude='deploy/' \
             ./ deploy/
 
-      - name: Deploy to DreamHost SFTP
+      - name: Deploy to SFTP server
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.SFTP_HOST }}
-          username: ${{ secrets.SFTP_USERNAME }}
-          password: ${{ secrets.SFTP_PASSWORD }}
-          private-key: ${{ secrets.SFTP_SSH_KEY }}
+          server: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_host || secrets.SFTP_HOST }}
+          username: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_username || secrets.SFTP_USERNAME }}
+          password: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_password || secrets.SFTP_PASSWORD }}
+          private-key: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_private_key || secrets.SFTP_SSH_KEY }}
           protocol: sftp
-          port: ${{ secrets.SFTP_PORT != '' && secrets.SFTP_PORT || '22' }}
-          server-dir: ovida.1976.cloud/
+          port: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_port || secrets.SFTP_PORT || '22' }}
+          server-dir: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_remote_dir || secrets.SFTP_REMOTE_DIR || '.' }}
           local-dir: deploy/
           dry-run: false
           exclude: |
