@@ -33,6 +33,10 @@ export default function DemoScreen({ navigation }: any) {
           onPress={() => navigation.navigate('Player', { runId: state.run_id })}
         />
       )}
+      <View style={{ marginTop: 24 }}>
+        <Text style={{ fontSize: 16, marginBottom: 8 }}>Operator tools</Text>
+        <Button title="Open Admin Console" onPress={() => navigation.navigate('Admin')} />
+      </View>
     </View>
   );
 }
