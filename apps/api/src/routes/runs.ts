@@ -78,7 +78,16 @@ export async function registerRunRoutes(app: FastifyInstance) {
 
     run.nextBeatIdx = beatIdx + 1;
 
-    reply.send({ beat, audio: { urls: synth.urls, mime: synth.mime } });
+    reply.send({
+      beat,
+      audio: {
+        provider: synth.provider,
+        urls: synth.urls,
+        mime: synth.mime,
+        soundstage: synth.soundstage,
+        narrator: synth.narrator,
+      },
+    });
   });
 
   app.get('/v1/runs/:id/replay', async (request, reply) => {
