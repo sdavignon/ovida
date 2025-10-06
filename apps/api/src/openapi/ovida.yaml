@@ -1,0 +1,92 @@
+openapi: 3.1.0
+info:
+  title: Ovida API
+  version: 0.1.0
+servers:
+  - url: http://localhost:4000
+paths:
+  /v1/auth/session:
+    get:
+      summary: Get current user session
+      responses:
+        '200':
+          description: Session payload
+  /v1/auth/logout:
+    post:
+      summary: Sign out current session
+      responses:
+        '200':
+          description: Logout result
+  /v1/demos/start:
+    post:
+      summary: Start a 3-step demo run
+      responses:
+        '200':
+          description: Demo start response
+  /v1/demos/next:
+    post:
+      summary: Advance demo
+      responses:
+        '200':
+          description: Next demo beat
+  /v1/demos/complete:
+    post:
+      summary: Complete demo flow
+      responses:
+        '200':
+          description: Demo completion
+  /v1/stories:
+    get:
+      summary: List available stories
+      responses:
+        '200':
+          description: Stories
+  /v1/runs:
+    post:
+      summary: Create new run
+      responses:
+        '200':
+          description: Run
+  /v1/runs/{id}/next:
+    post:
+      summary: Fetch next beat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Beat response
+  /v1/runs/{id}/replay:
+    get:
+      summary: Get replay JSON
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Replay
+  /v1/replays/{id}/verify:
+    get:
+      summary: Verify replay signature
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Verification result
+  /v1/rooms:
+    post:
+      summary: Create room
+      responses:
+        '200':
+          description: Room created
+components: {}

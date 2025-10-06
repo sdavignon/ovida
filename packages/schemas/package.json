@@ -1,0 +1,22 @@
+{
+  "name": "@ovida/schemas",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "dev": "pnpm build --watch",
+    "lint": "eslint 'src/**/*.ts'",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.5",
+    "tsup": "^8.0.1",
+    "vitest": "^1.5.0"
+  }
+}
