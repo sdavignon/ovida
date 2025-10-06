@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './page.module.css';
+import { apiFetch } from '../../lib/api';
 
 type MetricCard = {
   id: string;
@@ -24,11 +25,20 @@ type StoryGuide = {
   summary: string;
 };
 
+type ScenePath = {
+  id: string;
+  label: string;
+  summary: string;
+  prompt: string;
+  style?: string;
+};
+
 type StoryScene = {
   id: string;
   title: string;
   premise: string;
   status: 'draft' | 'ready' | 'published';
+  paths: ScenePath[];
 };
 
 type StoryChapter = {
@@ -65,6 +75,24 @@ type VoiceItem = {
   license: string;
   defaultForStory?: string;
 };
+
+type SceneImageResponse = {
+  scene_id: string;
+  path_id: string;
+  prompt: string;
+  thumbnail: string;
+  full: string;
+  generated_at: string;
+};
+
+type SceneImageAsset = {
+  thumbnail: string;
+  full: string;
+  prompt: string;
+  generatedAt: string;
+};
+
+const makeSceneKey = (sceneId: string, pathId: string) => `${sceneId}:${pathId}`;
 
 type PolicyVersion = {
   id: string;
@@ -158,12 +186,48 @@ const stories: StoryItem[] = [
             title: 'Boarding the Wreck',
             premise: 'Explore the shipwreck and uncover the first haunt.',
             status: 'published',
+            paths: [
+              {
+                id: 'scene-1-path-a',
+                label: 'Captain\'s Quarters',
+                summary: 'Investigate the sealed captain\'s door amid storm lanterns.',
+                prompt:
+                  'A weathered salvage crew pries open a captain\'s cabin on a wrecked ship, fog rolling in, spectral ropes swaying, teal and amber lighting.',
+                style: 'Oil painting with volumetric light',
+              },
+              {
+                id: 'scene-1-path-b',
+                label: 'Rusted Deck',
+                summary: 'Survey the exposed deck while tides crash below.',
+                prompt:
+                  'Wide shot of a haunted ship deck at low tide, barnacle-crusted railings, ghosts forming in sea spray, cinematic dusk palette.',
+                style: 'Cinematic concept art',
+              },
+            ],
           },
           {
             id: 'scene-2',
             title: 'Echoes in the Hold',
             premise: 'Players negotiate with the lingering spirits.',
             status: 'ready',
+            paths: [
+              {
+                id: 'scene-2-path-a',
+                label: 'Appease the Choir',
+                summary: 'Soothe a chorus of ghosts bound to anchor chains.',
+                prompt:
+                  'Subterranean ship hold with glowing chains, translucent ghost choir circling an anchor, warm candles vs cold moonlight contrast.',
+                style: 'Dark fantasy illustration',
+              },
+              {
+                id: 'scene-2-path-b',
+                label: 'Bargain with the Tide',
+                summary: 'Strike a deal with a tidal spirit through mirrored water.',
+                prompt:
+                  'A reflective pool in a ship hold forming a towering water spirit, protagonists offering relics, bioluminescent blues and silvers.',
+                style: 'Iridescent watercolor',
+              },
+            ],
           },
         ],
       },
@@ -178,6 +242,24 @@ const stories: StoryItem[] = [
             title: 'The Broken Beacon',
             premise: 'Repairing the beacon reveals a paradox.',
             status: 'draft',
+            paths: [
+              {
+                id: 'scene-3-path-a',
+                label: 'Rewind the Flame',
+                summary: 'Reassemble shattered glass suspended mid-air.',
+                prompt:
+                  'Clockwork lighthouse interior with suspended shards rewinding into place, gold gears floating, purple storm clouds outside.',
+                style: 'Dieselpunk matte painting',
+              },
+              {
+                id: 'scene-3-path-b',
+                label: 'Summon the Pharos',
+                summary: 'Invoke an ancient spirit to relight the beacon.',
+                prompt:
+                  'Mythic spirit of light emerging from a beacon lens, swirling constellations and crashing waves, heroic silhouettes.',
+                style: 'Mythic realism',
+              },
+            ],
           },
         ],
       },
@@ -209,6 +291,24 @@ const stories: StoryItem[] = [
             title: 'Breach the Vault',
             premise: 'Players bend temporal locks to reach the archives.',
             status: 'draft',
+            paths: [
+              {
+                id: 'scene-4-path-a',
+                label: 'Slip Between Seconds',
+                summary: 'Phase through guards frozen mid-action.',
+                prompt:
+                  'Temporal vault corridor with frozen guards mid-motion, protagonists weaving between time fractures, neon magenta highlights.',
+                style: 'Retro-futurist art deco',
+              },
+              {
+                id: 'scene-4-path-b',
+                label: 'Storm the Chrono-Gate',
+                summary: 'Overload the gate with rebellious chronomancers.',
+                prompt:
+                  'Grand clockwork gate exploding with golden sparks, rebels casting time sigils, skyline warped by time ripples.',
+                style: 'High-energy comic panel',
+              },
+            ],
           },
         ],
       },
@@ -265,6 +365,137 @@ const statusColors: Record<ActivityItem['type'], string> = {
 export default function AdminPage() {
   const [autoModeration, setAutoModeration] = useState(true);
   const [safetyMode, setSafetyMode] = useState<'relaxed' | 'standard' | 'strict'>('standard');
+  const sceneOptions = useMemo(
+    () =>
+      stories.flatMap((story) =>
+        story.chapters.flatMap((chapter) =>
+          chapter.scenes.map((scene) => ({
+            id: scene.id,
+            scene,
+            storyTitle: story.title,
+            chapterTitle: chapter.title,
+          })),
+        ),
+      ),
+    [],
+  );
+
+  const [selectedSceneId, setSelectedSceneId] = useState(sceneOptions[0]?.id ?? '');
+  const selectedScene = useMemo(
+    () => sceneOptions.find((option) => option.id === selectedSceneId),
+    [sceneOptions, selectedSceneId],
+  );
+  const [selectedPathId, setSelectedPathId] = useState<string>(
+    selectedScene?.scene.paths[0]?.id ?? '',
+  );
+  const [imageAssets, setImageAssets] = useState<Record<string, SceneImageAsset>>({});
+  const [activePreviewKey, setActivePreviewKey] = useState<string | null>(null);
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedScene) {
+      setSelectedPathId('');
+      return;
+    }
+    const [firstPath] = selectedScene.scene.paths;
+    if (!firstPath) {
+      setSelectedPathId('');
+      return;
+    }
+    setSelectedPathId(firstPath.id);
+  }, [selectedScene]);
+
+  useEffect(() => {
+    if (!selectedScene || !selectedPathId) {
+      setActivePreviewKey(null);
+      return;
+    }
+    const key = makeSceneKey(selectedScene.scene.id, selectedPathId);
+    if (imageAssets[key]) {
+      setActivePreviewKey(key);
+    } else {
+      setActivePreviewKey((current) => (current && imageAssets[current] ? current : null));
+    }
+  }, [selectedScene, selectedPathId, imageAssets]);
+
+  const handlePathSelect = useCallback(
+    (pathId: string) => {
+      if (!selectedScene) {
+        return;
+      }
+      setSelectedPathId(pathId);
+      const key = makeSceneKey(selectedScene.scene.id, pathId);
+      setActivePreviewKey(imageAssets[key] ? key : null);
+      setImageError(null);
+    },
+    [selectedScene, imageAssets],
+  );
+
+  const handleGenerate = useCallback(async () => {
+    if (!selectedScene || !selectedPathId) {
+      return;
+    }
+
+    const path = selectedScene.scene.paths.find((item) => item.id === selectedPathId);
+    if (!path) {
+      return;
+    }
+
+    const key = makeSceneKey(selectedScene.scene.id, path.id);
+    setLoadingKey(key);
+    setImageError(null);
+
+    try {
+      const response = await apiFetch<SceneImageResponse>('/v1/scenes/images', {
+        method: 'POST',
+        body: JSON.stringify({
+          scene_id: selectedScene.scene.id,
+          scene_title: selectedScene.scene.title,
+          path_id: path.id,
+          path_label: path.label,
+          path_summary: path.summary,
+          prompt: path.prompt,
+          style: path.style,
+        }),
+      });
+
+      setImageAssets((prev) => ({
+        ...prev,
+        [key]: {
+          thumbnail: response.thumbnail,
+          full: response.full,
+          prompt: response.prompt,
+          generatedAt: response.generated_at,
+        },
+      }));
+      setActivePreviewKey(key);
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : 'Failed to generate scene art');
+    } finally {
+      setLoadingKey(null);
+    }
+  }, [selectedScene, selectedPathId]);
+
+  const currentPath = selectedScene?.scene.paths.find((item) => item.id === selectedPathId);
+  const currentKey =
+    selectedScene && selectedPathId ? makeSceneKey(selectedScene.scene.id, selectedPathId) : null;
+  const previewKey = activePreviewKey ?? currentKey;
+  const previewAsset = previewKey ? imageAssets[previewKey] : undefined;
+  const isLoading = currentKey !== null && loadingKey === currentKey;
+  const canGenerate = Boolean(selectedScene && currentPath);
+  const generateLabel = isLoading
+    ? 'Generating art...'
+    : currentKey && imageAssets[currentKey]
+      ? 'Regenerate art'
+      : 'Generate art';
+  const previewTimestamp = useMemo(() => {
+    if (!previewAsset) {
+      return null;
+    }
+    const parsed = new Date(previewAsset.generatedAt);
+    return Number.isNaN(parsed.valueOf()) ? null : parsed.toLocaleTimeString();
+  }, [previewAsset]);
 
   const safetyDescription = useMemo(() => {
     switch (safetyMode) {
@@ -348,6 +579,106 @@ export default function AdminPage() {
               </ul>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className={styles.panel}>
+        <header>
+          <h2>Scene Imagery</h2>
+          <span>Generate OpenAI art for branching paths</span>
+        </header>
+        <div className={styles.sceneImages}>
+          <div className={styles.sceneImagesControls}>
+            <label htmlFor="scene-selector">Active scene</label>
+            <select
+              id="scene-selector"
+              value={selectedSceneId}
+              onChange={(event) => {
+                setSelectedSceneId(event.target.value);
+                setImageError(null);
+              }}
+            >
+              {sceneOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.scene.title} · {option.chapterTitle}
+                </option>
+              ))}
+            </select>
+            {selectedScene && (
+              <p>
+                {selectedScene.storyTitle} — {selectedScene.scene.premise}
+              </p>
+            )}
+          </div>
+
+          <div className={styles.sceneImagesPaths}>
+            {selectedScene?.scene.paths.length ? (
+              selectedScene.scene.paths.map((path) => {
+                const key = makeSceneKey(selectedScene.scene.id, path.id);
+                const asset = imageAssets[key];
+                const isActive = selectedPathId === path.id;
+                return (
+                  <button
+                    key={path.id}
+                    type="button"
+                    className={`${styles.scenePathButton} ${isActive ? styles.scenePathButtonActive : ''}`}
+                    onClick={() => handlePathSelect(path.id)}
+                  >
+                    <div className={styles.scenePathCopy}>
+                      <strong>{path.label}</strong>
+                      <span>{path.summary}</span>
+                    </div>
+                    <div className={styles.scenePathThumb} data-has-image={Boolean(asset)}>
+                      {asset ? (
+                        <img src={asset.thumbnail} alt={`${path.label} thumbnail`} />
+                      ) : (
+                        <span>Awaiting art</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <p className={styles.sceneImagesEmpty}>No navigation paths configured for this scene yet.</p>
+            )}
+          </div>
+
+          <div className={styles.sceneImagesActions}>
+            <button
+              type="button"
+              className={styles.sceneGenerateButton}
+              onClick={handleGenerate}
+              disabled={!canGenerate || isLoading}
+            >
+              {generateLabel}
+            </button>
+            {currentPath && (
+              <div className={styles.scenePromptMeta}>
+                <strong>Prompt</strong>
+                <span>{currentPath.prompt}</span>
+              </div>
+            )}
+            {imageError && <p className={styles.sceneImagesError}>{imageError}</p>}
+          </div>
+
+          <div className={styles.scenePreview} data-has-image={Boolean(previewAsset)}>
+            {previewAsset ? (
+              <>
+                <img
+                  src={previewAsset.full}
+                  alt={`Concept art for ${currentPath?.label ?? 'scene path'}`}
+                />
+                <footer>
+                  <span>{selectedScene?.scene.title}</span>
+                  {previewTimestamp && <span>{previewTimestamp}</span>}
+                </footer>
+              </>
+            ) : (
+              <div className={styles.scenePreviewPlaceholder}>
+                <span>Select a path to view its thumbnail or generate new art.</span>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
