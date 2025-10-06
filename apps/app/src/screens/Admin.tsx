@@ -1,5 +1,6 @@
-import React, { ReactNode, useMemo, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Switch } from 'react-native';
+import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Switch, Image } from 'react-native';
+import { apiFetch } from '../api/client';
 
 interface MetricCard {
   id: string;
@@ -22,11 +23,20 @@ interface StoryGuide {
   summary: string;
 }
 
+interface ScenePath {
+  id: string;
+  label: string;
+  summary: string;
+  prompt: string;
+  style?: string;
+}
+
 interface StoryScene {
   id: string;
   title: string;
   premise: string;
   status: 'draft' | 'ready' | 'published';
+  paths: ScenePath[];
 }
 
 interface StoryChapter {
@@ -81,6 +91,24 @@ interface PolicyVersion {
   softFilters: string[];
   updatedAt: string;
 }
+
+interface SceneImageResponse {
+  scene_id: string;
+  path_id: string;
+  prompt: string;
+  thumbnail: string;
+  full: string;
+  generated_at: string;
+}
+
+interface SceneImageAsset {
+  thumbnail: string;
+  full: string;
+  prompt: string;
+  generatedAt: string;
+}
+
+const makeSceneKey = (sceneId: string, pathId: string) => `${sceneId}:${pathId}`;
 
 interface ReportItem {
   id: string;
@@ -166,12 +194,48 @@ const stories: StoryItem[] = [
             title: 'Boarding the Wreck',
             premise: 'Explore the shipwreck and uncover the first haunt.',
             status: 'published',
+            paths: [
+              {
+                id: 'scene-1-path-a',
+                label: 'Captain\'s Quarters',
+                summary: 'Investigate the sealed captain\'s door amid storm lanterns.',
+                prompt:
+                  'A weathered salvage crew pries open a captain\'s cabin on a wrecked ship, fog rolling in, spectral ropes swaying, teal and amber lighting.',
+                style: 'Oil painting with volumetric light',
+              },
+              {
+                id: 'scene-1-path-b',
+                label: 'Rusted Deck',
+                summary: 'Survey the exposed deck while tides crash below.',
+                prompt:
+                  'Wide shot of a haunted ship deck at low tide, barnacle-crusted railings, ghosts forming in sea spray, cinematic dusk palette.',
+                style: 'Cinematic concept art',
+              },
+            ],
           },
           {
             id: 'scene-2',
             title: 'Echoes in the Hold',
             premise: 'Players negotiate with the lingering spirits.',
             status: 'ready',
+            paths: [
+              {
+                id: 'scene-2-path-a',
+                label: 'Appease the Choir',
+                summary: 'Soothe a chorus of ghosts bound to anchor chains.',
+                prompt:
+                  'Subterranean ship hold with glowing chains, translucent ghost choir circling an anchor, warm candles vs cold moonlight contrast.',
+                style: 'Dark fantasy illustration',
+              },
+              {
+                id: 'scene-2-path-b',
+                label: 'Bargain with the Tide',
+                summary: 'Strike a deal with a tidal spirit through mirrored water.',
+                prompt:
+                  'A reflective pool in a ship hold forming a towering water spirit, protagonists offering relics, bioluminescent blues and silvers.',
+                style: 'Iridescent watercolor',
+              },
+            ],
           },
         ],
       },
@@ -186,6 +250,24 @@ const stories: StoryItem[] = [
             title: 'The Broken Beacon',
             premise: 'Repairing the beacon reveals a paradox.',
             status: 'draft',
+            paths: [
+              {
+                id: 'scene-3-path-a',
+                label: 'Rewind the Flame',
+                summary: 'Reassemble shattered glass suspended mid-air.',
+                prompt:
+                  'Clockwork lighthouse interior with suspended shards rewinding into place, gold gears floating, purple storm clouds outside.',
+                style: 'Dieselpunk matte painting',
+              },
+              {
+                id: 'scene-3-path-b',
+                label: 'Summon the Pharos',
+                summary: 'Invoke an ancient spirit to relight the beacon.',
+                prompt:
+                  'Mythic spirit of light emerging from a beacon lens, swirling constellations and crashing waves, heroic silhouettes.',
+                style: 'Mythic realism',
+              },
+            ],
           },
         ],
       },
@@ -217,6 +299,24 @@ const stories: StoryItem[] = [
             title: 'Rooftop Confrontation',
             premise: 'Debate whether to freeze or rewind time.',
             status: 'ready',
+            paths: [
+              {
+                id: 'scene-4-path-a',
+                label: 'Slip Between Seconds',
+                summary: 'Phase through guards frozen mid-action.',
+                prompt:
+                  'Temporal vault corridor with frozen guards mid-motion, protagonists weaving between time fractures, neon magenta highlights.',
+                style: 'Retro-futurist art deco',
+              },
+              {
+                id: 'scene-4-path-b',
+                label: 'Storm the Chrono-Gate',
+                summary: 'Overload the gate with rebellious chronomancers.',
+                prompt:
+                  'Grand clockwork gate exploding with golden sparks, rebels casting time sigils, skyline warped by time ripples.',
+                style: 'High-energy comic panel',
+              },
+            ],
           },
         ],
       },
@@ -354,7 +454,147 @@ export default function AdminScreen() {
   const [audioModeIndex, setAudioModeIndex] = useState(0);
   const [realtimeEnabled, setRealtimeEnabled] = useState(true);
   const audioModes = useMemo(() => ['files', 'realtime', 'auto'], []);
+  const sceneOptions = useMemo(
+    () =>
+      stories.flatMap((story) =>
+        story.chapters.flatMap((chapter) =>
+          chapter.scenes.map((scene) => ({
+            id: scene.id,
+            scene,
+            storyTitle: story.title,
+            chapterTitle: chapter.title,
+          })),
+        ),
+      ),
+    [],
+  );
 
+  const [selectedSceneId, setSelectedSceneId] = useState(sceneOptions[0]?.id ?? '');
+  const selectedScene = useMemo(
+    () => sceneOptions.find((option) => option.id === selectedSceneId),
+    [sceneOptions, selectedSceneId],
+  );
+  const [selectedPathId, setSelectedPathId] = useState<string>(
+    selectedScene?.scene.paths[0]?.id ?? '',
+  );
+  const [imageAssets, setImageAssets] = useState<Record<string, SceneImageAsset>>({});
+  const [activePreviewKey, setActivePreviewKey] = useState<string | null>(null);
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedScene) {
+      setSelectedPathId('');
+      return;
+    }
+    const [firstPath] = selectedScene.scene.paths;
+    if (!firstPath) {
+      setSelectedPathId('');
+      return;
+    }
+    setSelectedPathId((current) => {
+      if (selectedScene.scene.paths.some((path) => path.id === current)) {
+        return current;
+      }
+      return firstPath.id;
+    });
+  }, [selectedScene]);
+
+  useEffect(() => {
+    if (!selectedScene || !selectedPathId) {
+      setActivePreviewKey(null);
+      return;
+    }
+    const key = makeSceneKey(selectedScene.scene.id, selectedPathId);
+    if (imageAssets[key]) {
+      setActivePreviewKey(key);
+    } else {
+      setActivePreviewKey((current) => (current && imageAssets[current] ? current : null));
+    }
+  }, [selectedScene, selectedPathId, imageAssets]);
+
+  const handleSceneChipPress = useCallback((sceneId: string) => {
+    setSelectedSceneId(sceneId);
+    setImageError(null);
+  }, []);
+
+  const handlePathPress = useCallback(
+    (pathId: string) => {
+      if (!selectedScene) {
+        return;
+      }
+      setSelectedPathId(pathId);
+      const key = makeSceneKey(selectedScene.scene.id, pathId);
+      setActivePreviewKey(imageAssets[key] ? key : null);
+      setImageError(null);
+    },
+    [selectedScene, imageAssets],
+  );
+
+  const handleGenerateImage = useCallback(async () => {
+    if (!selectedScene || !selectedPathId) {
+      return;
+    }
+
+    const path = selectedScene.scene.paths.find((item) => item.id === selectedPathId);
+    if (!path) {
+      return;
+    }
+
+    const key = makeSceneKey(selectedScene.scene.id, path.id);
+    setLoadingKey(key);
+    setImageError(null);
+
+    try {
+      const response = await apiFetch<SceneImageResponse>('/v1/scenes/images', {
+        method: 'POST',
+        body: JSON.stringify({
+          scene_id: selectedScene.scene.id,
+          scene_title: selectedScene.scene.title,
+          path_id: path.id,
+          path_label: path.label,
+          path_summary: path.summary,
+          prompt: path.prompt,
+          style: path.style,
+        }),
+      });
+
+      setImageAssets((prev) => ({
+        ...prev,
+        [key]: {
+          thumbnail: response.thumbnail,
+          full: response.full,
+          prompt: response.prompt,
+          generatedAt: response.generated_at,
+        },
+      }));
+      setActivePreviewKey(key);
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : 'Failed to generate art');
+    } finally {
+      setLoadingKey(null);
+    }
+  }, [selectedScene, selectedPathId]);
+
+  const currentPath = selectedScene?.scene.paths.find((item) => item.id === selectedPathId);
+  const currentKey =
+    selectedScene && selectedPathId ? makeSceneKey(selectedScene.scene.id, selectedPathId) : null;
+  const previewKey = activePreviewKey ?? currentKey;
+  const previewAsset = previewKey ? imageAssets[previewKey] : undefined;
+  const isGenerating = currentKey !== null && loadingKey === currentKey;
+  const canGenerateImage = Boolean(selectedScene && currentPath);
+  const generateLabel = isGenerating
+    ? 'Generating...'
+    : currentKey && imageAssets[currentKey]
+      ? 'Regenerate art'
+      : 'Generate art';
+  const previewTimeLabel = useMemo(() => {
+    if (!previewAsset) {
+      return null;
+    }
+    const parsed = new Date(previewAsset.generatedAt);
+    return Number.isNaN(parsed.valueOf()) ? null : parsed.toLocaleTimeString();
+  }, [previewAsset]);
   const currentAudioMode = audioModes[audioModeIndex];
 
   const cycleAudioMode = () => {
@@ -460,6 +700,109 @@ export default function AdminScreen() {
             ))}
           </View>
         ))}
+      </Section>
+
+      <Section title="Scene Imagery">
+        <View style={styles.sceneImageryCard}>
+          <Text style={styles.sceneImageryHeading}>Scenes</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.sceneChipScroll}
+            contentContainerStyle={styles.sceneChipRow}
+          >
+            {sceneOptions.map((option) => {
+              const isActive = option.id === selectedSceneId;
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[styles.sceneChip, isActive && styles.sceneChipActive]}
+                  onPress={() => handleSceneChipPress(option.id)}
+                >
+                  <Text style={styles.sceneChipLabel}>{option.scene.title}</Text>
+                  <Text style={styles.sceneChipMeta}>{option.chapterTitle}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {selectedScene ? (
+            <>
+              <Text style={styles.sceneImageryHeading}>Paths</Text>
+              <View style={styles.pathCardGrid}>
+                {selectedScene.scene.paths.map((path) => {
+                  const key = makeSceneKey(selectedScene.scene.id, path.id);
+                  const asset = imageAssets[key];
+                  const isActive = selectedPathId === path.id;
+                  return (
+                    <TouchableOpacity
+                      key={path.id}
+                      style={[styles.pathCard, isActive && styles.pathCardActive]}
+                      onPress={() => handlePathPress(path.id)}
+                    >
+                      <View style={styles.pathCopy}>
+                        <Text style={styles.pathTitle}>{path.label}</Text>
+                        <Text style={styles.pathSummary}>{path.summary}</Text>
+                      </View>
+                      <View
+                        style={[styles.pathThumbnail, asset && styles.pathThumbnailReady]}
+                      >
+                        {asset ? (
+                          <Image source={{ uri: asset.thumbnail }} style={styles.pathThumbnailImage} />
+                        ) : (
+                          <Text style={styles.pathThumbnailLabel}>Awaiting art</Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          ) : (
+            <Text style={styles.sceneImageryEmpty}>No scenes available.</Text>
+          )}
+
+          <View style={styles.generateRow}>
+            <TouchableOpacity
+              onPress={handleGenerateImage}
+              style={[
+                styles.generateButton,
+                (!canGenerateImage || isGenerating) && styles.generateButtonDisabled,
+              ]}
+              disabled={!canGenerateImage || isGenerating}
+            >
+              <Text style={styles.generateButtonText}>{generateLabel}</Text>
+            </TouchableOpacity>
+            {imageError ? <Text style={styles.generateError}>{imageError}</Text> : null}
+          </View>
+
+          {currentPath ? (
+            <View style={styles.promptCard}>
+              <Text style={styles.promptLabel}>Prompt</Text>
+              <Text style={styles.promptValue}>{currentPath.prompt}</Text>
+            </View>
+          ) : null}
+
+          <View
+            style={[styles.previewFrame, previewAsset && styles.previewFrameReady]}
+          >
+            {previewAsset ? (
+              <>
+                <Image source={{ uri: previewAsset.full }} style={styles.previewImage} />
+                <View style={styles.previewMeta}>
+                  <Text style={styles.previewTitle}>{selectedScene?.scene.title}</Text>
+                  {previewTimeLabel ? (
+                    <Text style={styles.previewTimestamp}>{previewTimeLabel}</Text>
+                  ) : null}
+                </View>
+              </>
+            ) : (
+              <Text style={styles.previewPlaceholder}>
+                Select a path to follow and render art alongside navigation.
+              </Text>
+            )}
+          </View>
+        </View>
       </Section>
 
       <Section title="Runs & Replays">
@@ -951,6 +1294,192 @@ const styles = StyleSheet.create({
   },
   listColumn: {
     marginRight: 16,
+  },
+  sceneImageryCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 16,
+    padding: 16,
+  },
+  sceneImageryHeading: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4b5563',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  sceneChipScroll: {
+    marginHorizontal: -4,
+  },
+  sceneChipRow: {
+    paddingVertical: 4,
+  },
+  sceneChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#e5e7eb',
+    marginHorizontal: 4,
+  },
+  sceneChipActive: {
+    backgroundColor: '#2563eb',
+  },
+  sceneChipLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  sceneChipMeta: {
+    fontSize: 11,
+    color: '#1f2937',
+    opacity: 0.7,
+  },
+  sceneImageryEmpty: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  pathCardGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  pathCard: {
+    flexBasis: '48%',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e5e7eb',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  pathCardActive: {
+    borderColor: '#2563eb',
+    shadowColor: '#2563eb',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  pathCopy: {
+    flex: 1,
+    marginRight: 12,
+  },
+  pathTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  pathSummary: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  pathThumbnail: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f3f4f6',
+  },
+  pathThumbnailReady: {
+    borderColor: '#2563eb',
+  },
+  pathThumbnailImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  pathThumbnailLabel: {
+    fontSize: 11,
+    color: '#6b7280',
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
+  generateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    flexWrap: 'wrap',
+  },
+  generateButton: {
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+  generateButtonDisabled: {
+    backgroundColor: '#a5b4fc',
+  },
+  generateButtonText: {
+    color: '#f9fafb',
+    fontWeight: '600',
+    letterSpacing: 0.4,
+  },
+  generateError: {
+    fontSize: 12,
+    color: '#dc2626',
+    marginLeft: 12,
+  },
+  promptCard: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e5e7eb',
+  },
+  promptLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+  },
+  promptValue: {
+    fontSize: 13,
+    color: '#1f2937',
+    marginTop: 6,
+  },
+  previewFrame: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#d1d5db',
+    padding: 12,
+    backgroundColor: '#f9fafb',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  previewFrameReady: {
+    backgroundColor: '#ffffff',
+  },
+  previewImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+  },
+  previewMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  previewTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  previewTimestamp: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  previewPlaceholder: {
+    fontSize: 13,
+    color: '#6b7280',
+    textAlign: 'center',
+    paddingHorizontal: 16,
   },
 });
 
