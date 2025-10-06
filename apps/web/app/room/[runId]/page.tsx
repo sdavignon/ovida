@@ -47,14 +47,14 @@ export default function RoomPage({ params }: { params: { runId: string } }) {
 
   return (
     <section className={styles.room}>
-      <header>
+      <header className={styles.header}>
         <p className={styles.eyebrow}>Live Room</p>
         <h2>Run {runId}</h2>
         <span className={connected ? styles.connected : styles.disconnected}>
           {connected ? 'Connected' : 'Disconnected'}
         </span>
       </header>
-      <button onClick={sendVote} disabled={!connected}>
+      <button className={styles.voteButton} onClick={sendVote} disabled={!connected}>
         Cast Vote
       </button>
       <div className={styles.log}>

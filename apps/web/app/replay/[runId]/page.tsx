@@ -36,7 +36,7 @@ export default function ReplayPage({ params }: { params: { runId: string } }) {
         <h2>Run {runId}</h2>
       </header>
       {error && <p className={styles.error}>{error}</p>}
-      <pre>{JSON.stringify(replay, null, 2)}</pre>
+      <pre className={styles.log}>{JSON.stringify(replay, null, 2)}</pre>
     </section>
   );
 }
