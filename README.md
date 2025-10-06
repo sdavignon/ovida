@@ -5,6 +5,13 @@
 ## Applications
 
 The workspace is managed with pnpm and contains:
+- **apps/api** – Fastify OpenAPI-first service backed by Supabase Postgres and Auth
+- **apps/ws** – WebSocket coordinator for live rooms and voting atop Supabase Realtime
+- **apps/app** – Expo client (web + native) that drives demo, playback, and rooms
+- **apps/web** – Next.js operator console for demos, replays, rooms, and admin tooling
+- **packages/schemas** – Shared zod models for beats, replays, and policy definitions
+- **packages/sdk** – Typed SDK generated from the OpenAPI contract
+- **supabase/** – SQL migrations, seeds, and RLS policies for core data structures
 
 - **apps/api** – Fastify HTTP API backed by Supabase for persistence and auth.
 - **apps/ws** – WebSocket coordinator for live rooms and voting.
@@ -116,6 +123,9 @@ NODE_ENV=production PORT=3000 node server.js
 Adjust the port to match your process manager or proxy configuration.
 
 ## Testing
+4. Launch the web console (`pnpm --filter @ovida/web dev`) to explore the demo, player, room, replay, and admin surfaces in the browser.
+
+5. Launch the Expo app (`pnpm --filter @ovida/app dev`) and explore the 3-step demo.
 
 Use the workspace scripts provided by TurboRepo:
 

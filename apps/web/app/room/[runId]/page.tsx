@@ -57,6 +57,11 @@ export default function RoomPage({ params }: { params: { runId: string } }) {
         </span>
       </header>
       <button className={styles.action} onClick={sendVote} disabled={!connected}>
+        <span className={connected ? styles.connected : styles.disconnected}>
+          {connected ? 'Connected' : 'Disconnected'}
+        </span>
+      </header>
+      <button className={styles.voteButton} onClick={sendVote} disabled={!connected}>
         Cast Vote
       </button>
       <div className={styles.log}>

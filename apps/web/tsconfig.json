@@ -37,4 +37,11 @@
   "exclude": [
     "node_modules"
   ]
+      "@/lib/*": ["lib/*"],
+      "@/components/*": ["components/*"]
+    },
+    "jsx": "preserve"
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.cjs", "**/*.mjs"],
+  "exclude": ["node_modules"]
 }
