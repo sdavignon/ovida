@@ -2,6 +2,7 @@ export type AudioMode = "files" | "realtime" | "auto";
 
 export function getAudioMode(): AudioMode {
   const m = (process.env.AUDIO_MODE || "auto").toLowerCase();
+  return ("files" === m || "realtime" === m || "auto" === m) ? (m as AudioMode) : "auto";
   return (["files", "realtime", "auto"] as const).includes(m as AudioMode)
     ? (m as AudioMode)
     : "auto";
