@@ -3,11 +3,11 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'export',
   images: {
-    unoptimized: true
+    unoptimized: true,
   },
   experimental: {
-    typedRoutes: true
-  }
+    typedRoutes: true,
+  },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
