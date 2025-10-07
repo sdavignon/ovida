@@ -62,14 +62,11 @@ The repository includes `.github/workflows/deploy.yml`, a reusable workflow that
 
 Store the following values under **Settings → Secrets and variables → Actions** to supply defaults:
 
-| Name | Type | Description |
-|------|------|-------------|
-| `SFTP_HOST` | Secret or variable | Default hostname of the SFTP server. |
-| `SFTP_USERNAME` | Secret or variable | Default username used for authentication. |
-| `SFTP_PASSWORD` | Secret | Password for the SFTP user (leave empty when using SSH keys). |
-| `SFTP_SSH_KEY` | Secret | Private SSH key (PEM format). Leave empty when using passwords. |
-| `SFTP_PORT` | Secret or variable | Optional port override (defaults to `22`). |
-| `SFTP_REMOTE_DIR` | Secret or variable | Remote directory to upload into (e.g. `/var/www/html/`). |
+   ```bash
+   make supabase.up
+   make supabase.mig
+   make seed
+   ```
 
 > Provide **either** `SFTP_PASSWORD` **or** `SFTP_SSH_KEY`. Supplying both prefers the SSH key supplied through workflow dispatch or secrets.
 
@@ -125,7 +122,7 @@ Adjust the port to match your process manager or proxy configuration.
 ## Testing
 4. Launch the web console (`pnpm --filter @ovida/web dev`) to explore the demo, player, room, replay, and admin surfaces in the browser.
 
-5. Launch the Expo app (`pnpm --filter @ovida/app dev`) and explore the 3-step demo.
+## Testing
 
 Use the workspace scripts provided by TurboRepo:
 

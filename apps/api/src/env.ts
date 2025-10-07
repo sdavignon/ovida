@@ -12,6 +12,8 @@ const EnvSchema = z.object({
   ELEVENLABS_STREAMING: z.enum(['on', 'off']).default('off'),
   API_ORIGIN: z.string().url().optional(),
   APP_ORIGIN: z.string().url().optional(),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_API_BASE_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

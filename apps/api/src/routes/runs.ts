@@ -1,23 +1,9 @@
-import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { chooseEngine, getEngine } from '../audio/select';
 import { generateDemoBeat } from '../services/llm';
 import { signReplay } from '../services/replay';
-
-interface InMemoryRun {
-  id: string;
-  story_id: string;
-  seed: number;
-  model_version: string;
-  policy_version: string;
-  canon_version: string;
-  visibility: string;
-  voice_id?: string | null;
-  nextBeatIdx: number;
-}
-
-const RUN_STORE = new Map<string, InMemoryRun>();
+import { createRun, getRun, saveRun } from '../stores/runs';
 
 export async function registerRunRoutes(app: FastifyInstance) {
   app.post('/v1/runs', async (request, reply) => {
@@ -27,19 +13,7 @@ export async function registerRunRoutes(app: FastifyInstance) {
     });
     const { story_id, seed } = BodySchema.parse(request.body);
 
-    const run: InMemoryRun = {
-      id: randomUUID(),
-      story_id,
-      seed,
-      model_version: 'gpt-5',
-      policy_version: 'policy-v1',
-      canon_version: 'v1',
-      visibility: 'public',
-      voice_id: null,
-      nextBeatIdx: 0,
-    };
-
-    RUN_STORE.set(run.id, run);
+    const run = createRun({ story_id, seed });
 
     reply.send({ run });
   });
@@ -50,7 +24,7 @@ export async function registerRunRoutes(app: FastifyInstance) {
     const QuerySchema = z.object({ index: z.coerce.number().int().optional() });
     const { index } = QuerySchema.parse(request.query);
 
-    const run = RUN_STORE.get(id);
+    const run = getRun(id);
     if (!run) {
       reply.code(404).send({ error: 'run_not_found' });
       return;
@@ -77,6 +51,7 @@ export async function registerRunRoutes(app: FastifyInstance) {
     }
 
     run.nextBeatIdx = beatIdx + 1;
+    saveRun(run);
 
     reply.send({
       beat,

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { ensureUserProfile } from '../services/auth.supabase';
 
 export async function registerAuthRoutes(app: FastifyInstance) {
   app.get('/v1/auth/session', async (request, reply) => {
@@ -14,15 +15,22 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       return reply.code(401).send({ user: null, profile: null });
     }
 
-    const profile = data.user
-      ? await app.supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', data.user.id)
-          .maybeSingle()
-      : { data: null };
+    let profile = null;
 
-    return reply.send({ user: data.user, profile: profile?.data ?? null });
+    if (data.user) {
+      try {
+        profile = await ensureUserProfile({
+          supabase: app.supabase,
+          user: data.user,
+          logger: request.log,
+        });
+      } catch (err) {
+        request.log.error({ err }, 'failed to ensure user profile for session');
+        return reply.code(500).send({ user: data.user, profile: null });
+      }
+    }
+
+    return reply.send({ user: data.user, profile });
   });
 
   app.post('/v1/auth/logout', async (_request, reply) => {

@@ -1,7 +1,7 @@
 import type { AudioEngine } from './engine';
 import { ElevenLabsEngine } from './engines/elevenlabs';
 import { OpenAIRealtimeEngine } from './engines/openai-realtime';
-import { getAudioMode, isProdLike, realtimeEnabled } from './flags';
+import { getAudioMode, realtimeEnabled, isProdLike } from './flags';
 
 export type EngineChoice = 'elevenlabs' | 'openai-realtime';
 
@@ -11,21 +11,18 @@ export function chooseEngine(params: {
 }): EngineChoice {
   const audioMode = getAudioMode();
 
-  if (audioMode === 'files') {
-    return 'elevenlabs';
-  }
-  if (audioMode === 'realtime') {
-    return 'openai-realtime';
-  }
+  // Hard overrides
+  if (audioMode === 'files') return 'elevenlabs';
+  if (audioMode === 'realtime') return 'openai-realtime';
 
   if (params.storyVoicePolicy === 'premium') {
     return 'elevenlabs';
   }
 
+  // AUTO mode: dev uses files; prod/staging uses realtime for rooms if enabled
   if (params.mode === 'room-live' && isProdLike() && realtimeEnabled()) {
     return 'openai-realtime';
   }
-
   return 'elevenlabs';
 }
 
