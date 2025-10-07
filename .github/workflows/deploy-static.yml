@@ -1,0 +1,51 @@
+name: Deploy Ovida Web (Static → DreamHost)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      NODE_VERSION: '20'
+      WEB_DIR: apps/web
+      REMOTE_PATH: ${{ vars.REMOTE_PATH }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Use Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install deps (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build @ovida/web
+        run: pnpm --filter @ovida/web build
+
+      - name: Static export
+        working-directory: ${{ env.WEB_DIR }}
+        run: npx next export -o out
+
+      - name: Upload via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          server: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          username: ${{ secrets.SSH_USER }}
+          ssh_private_key: ${{ secrets.SSH_KEY }}
+          local_path: '${{ env.WEB_DIR }}/out/*'
+          remote_path: '${{ env.REMOTE_PATH }}'
+          delete_remote_files: true
