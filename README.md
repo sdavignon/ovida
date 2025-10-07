@@ -1,41 +1,26 @@
 # Ovida Monorepo
 
-"The story that lives" — a deterministic, replayable, AI-assisted narrative platform. This monorepo provides the mobile, web, and backend pieces that power Ovida experiences.
+"The story that lives" — a deterministic, replayable, AI-assisted narrative platform.
 
-## Applications
+## Repository layout
 
-The workspace is managed with pnpm and contains:
-- **apps/api** – Fastify OpenAPI-first service backed by Supabase Postgres and Auth
-- **apps/ws** – WebSocket coordinator for live rooms and voting atop Supabase Realtime
-- **apps/app** – Expo client (web + native) that drives demo, playback, and rooms
-- **apps/web** – Next.js operator console for demos, replays, rooms, and admin tooling
-- **packages/schemas** – Shared zod models for beats, replays, and policy definitions
-- **packages/sdk** – Typed SDK generated from the OpenAPI contract
-- **supabase/** – SQL migrations, seeds, and RLS policies for core data structures
-
-- **apps/api** – Fastify HTTP API backed by Supabase for persistence and auth.
-- **apps/ws** – WebSocket coordinator for live rooms and voting.
-- **apps/app** – Expo client for iOS, Android, and web.
+- **apps/api** – Fastify OpenAPI-first service backed by Supabase Postgres and Auth.
+- **apps/ws** – WebSocket coordinator for live rooms and voting atop Supabase Realtime.
+- **apps/app** – Expo client (web + native) that drives demo, playback, and rooms.
 - **apps/web** – Next.js operator console for demos, replays, rooms, and admin tooling.
-- **packages/schemas** – Shared Zod models.
-- **packages/sdk** – Generated SDK mirroring the HTTP contract.
-- **supabase/** – SQL migrations, seeds, and RLS policies.
-
-## Prerequisites
-
-- Node.js 18+
-- pnpm 8 (install with `corepack enable` or from https://pnpm.io)
-- Docker (for local Supabase)
+- **packages/schemas** – Shared zod models for beats, replays, and policy definitions.
+- **packages/sdk** – Typed SDK generated from the OpenAPI contract.
+- **supabase/** – SQL migrations, seeds, and RLS policies for core data structures.
 
 ## Getting started
 
-1. Install dependencies
+1. **Install dependencies**
 
    ```bash
    pnpm install
    ```
 
-2. Start Supabase locally
+2. **Start Supabase locally**
 
    ```bash
    make supabase.up
@@ -43,16 +28,34 @@ The workspace is managed with pnpm and contains:
    make seed
    ```
 
-3. Run the services you need
+3. **Run services**
 
    ```bash
-   pnpm --filter @ovida/api dev      # REST API
-   pnpm --filter @ovida/ws dev       # WebSocket server
-   pnpm --filter @ovida/web dev      # Next.js operator console
-   pnpm --filter @ovida/app dev      # Expo app (press w/i/a to open targets)
+   make dev
    ```
 
-See `.env.example` for the variables the services expect.
+   - Launch the web console with `pnpm --filter @ovida/web dev` to explore the demo, player, room, replay, and admin surfaces in the browser.
+   - Launch the Expo app with `pnpm --filter @ovida/app dev` and explore the 3-step demo.
+
+See `.env.example` for the environment variables required by each service.
+
+## Deployment scripts and automation
+
+### Local packaging helpers
+
+- `make dev` – boots every workspace that participates in the development experience.
+- `make supabase.up` / `make supabase.down` – manage the local Supabase containers.
+- `make supabase.mig` – applies the latest Supabase migrations to keep the database schema in sync.
+- `make seed` – loads baseline data for development and demo purposes.
+
+### SFTP deployment workflow
+
+This repository ships with a reusable GitHub Actions workflow that bundles the project files and deploys them to **any** SFTP-accessible web host. It can run automatically on every push to `main`, or manually with custom connection details.
+
+- `.github/workflows/deploy.yml` – CI/CD workflow that builds the deployment package and publishes it to the remote server over SFTP.
+- `.gitignore` – prevents the temporary `deploy/` directory created during the workflow from being committed.
+
+#### Required secrets / variables
 
 ## Deployment options
 
@@ -62,11 +65,7 @@ The repository includes `.github/workflows/deploy.yml`, a reusable workflow that
 
 Store the following values under **Settings → Secrets and variables → Actions** to supply defaults:
 
-   ```bash
-   make supabase.up
-   make supabase.mig
-   make seed
-   ```
+#### Manual overrides via workflow dispatch
 
 > Provide **either** `SFTP_PASSWORD` **or** `SFTP_SSH_KEY`. Supplying both prefers the SSH key supplied through workflow dispatch or secrets.
 
@@ -74,59 +73,37 @@ When triggering the workflow manually from **Actions → Deploy via SFTP → Run
 
 Under the hood the workflow:
 
-1. Checks out the repository.
-2. Copies the contents into a temporary `deploy/` directory, excluding Git metadata and workflow files.
-3. Uploads the bundle to the configured SFTP destination, deleting files on the server that no longer exist locally.
+#### How the workflow works
 
 After the run succeeds, browse to your site's URL to confirm the new build and inspect the workflow logs for upload details.
 
-### DreamHost / SSH deployment script
+#### Running the workflow
 
 `scripts/deploy/dreamhost.sh` automates deployments to shell hosts (such as DreamHost). The script:
 
-1. Connects to the remote host over SSH.
-2. Clones or updates the public repository (`https://github.com/ovida/ovida.git` by default).
-3. Installs dependencies with `pnpm install --frozen-lockfile`.
-4. Builds the Next.js operator console in production mode.
-5. Copies the standalone build into the specified site directory (defaults to `~/ovida.1976.cloud`).
+#### Verifying the deployment
 
 Run it from your machine:
 
-```bash
-./scripts/deploy/dreamhost.sh deployer@ovida.1976.cloud
+#### Local validation (optional)
+
+You can test SFTP credentials locally with `lftp` or a similar client. After connecting, change to the configured remote directory and confirm that you have write permissions. Never commit credentials to the repository; always store them as GitHub secrets or variables.
+
+## Screen captures
+
+Use the following checklist when capturing UI walkthroughs. Store images under `docs/images/` so they can be referenced from this document.
+
+| Capture | Suggested filename | Description |
+|---------|--------------------|-------------|
+| Home screen | `docs/images/home-screen.png` | Landing surface showing the live narrative overview and quick-start actions. |
+| Room management | `docs/images/room-management.png` | Operator console for creating rooms, managing participants, and monitoring votes in real time. |
+| Replay timeline | `docs/images/replay-timeline.png` | Playback interface displaying the branching narrative timeline, beat metadata, and controls. |
+| Admin tools | `docs/images/admin-tools.png` | Administrative dashboard highlighting content moderation, policy overrides, and deployment health. |
+
+Update the table with additional rows as new surfaces are introduced. Embed each screenshot below with Markdown, for example:
+
+```markdown
+![Ovida home screen](docs/images/home-screen.png)
 ```
 
-Optional arguments let you override the target directory and checkout folder:
-
-```bash
-./scripts/deploy/dreamhost.sh deployer@ovida.1976.cloud ~/ovida.1976.cloud ~/ovida-deploy
-```
-
-Environment variables `REPO_URL` and `BRANCH` customise the repository clone, e.g. `BRANCH=work ./scripts/deploy/dreamhost.sh deployer@ovida.1976.cloud`.
-
-**Remote host requirements**
-
-- SSH access with Git available.
-- Node.js 18+ and npm. The script installs pnpm using Corepack or npm when required.
-- Enough space for both the checkout directory and the deployed standalone build.
-
-After the script completes, start the server from the site directory:
-
-```bash
-cd ~/ovida.1976.cloud
-NODE_ENV=production PORT=3000 node server.js
-```
-
-Adjust the port to match your process manager or proxy configuration.
-
-## Testing
-4. Launch the web console (`pnpm --filter @ovida/web dev`) to explore the demo, player, room, replay, and admin surfaces in the browser.
-
-## Testing
-
-Use the workspace scripts provided by TurboRepo:
-
-```bash
-pnpm lint
-pnpm test
-```
+Include concise captions beneath each image describing the narrative context showcased in the capture.
