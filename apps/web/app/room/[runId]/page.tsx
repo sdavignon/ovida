@@ -50,11 +50,13 @@ export default function RoomPage({ params }: { params: { runId: string } }) {
       <header className={styles.header}>
         <p className={styles.eyebrow}>Live Room</p>
         <h2>Run {runId}</h2>
-        <span className={connected ? styles.connected : styles.disconnected}>
+        <span
+          className={`${styles.status} ${connected ? styles.connected : styles.disconnected}`}
+        >
           {connected ? 'Connected' : 'Disconnected'}
         </span>
       </header>
-      <button className={styles.voteButton} onClick={sendVote} disabled={!connected}>
+      <button className={styles.action} onClick={sendVote} disabled={!connected}>
         Cast Vote
       </button>
       <div className={styles.log}>

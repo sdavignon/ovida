@@ -2,34 +2,33 @@
 
 "The story that lives" — a deterministic, replayable, AI-assisted narrative platform.
 
-## Repository layout
+## Applications
 
-- **apps/api** – Fastify OpenAPI-first service backed by Supabase Postgres and Auth.
-- **apps/ws** – WebSocket coordinator for live rooms and voting atop Supabase Realtime.
-- **apps/app** – Expo client (web + native) that drives demo, playback, and rooms.
+This repository is organised as a pnpm workspace with the following projects:
+
+- **apps/api** – Fastify HTTP API backed by Supabase for persistence and auth.
+- **apps/ws** – WebSocket coordinator for live rooms and voting.
+- **apps/app** – Expo client for iOS, Android, and web.
 - **apps/web** – Next.js operator console for demos, replays, rooms, and admin tooling.
-- **packages/schemas** – Shared zod models for beats, replays, and policy definitions.
-- **packages/sdk** – Typed SDK generated from the OpenAPI contract.
-- **supabase/** – SQL migrations, seeds, and RLS policies for core data structures.
+- **packages/schemas** – Shared Zod models.
+- **packages/sdk** – Generated SDK that mirrors the HTTP contract.
+- **supabase/** – SQL migrations, seeds, and RLS policies.
+
+## Prerequisites
+
+- Node.js 18+
+- pnpm 8 (install with `corepack enable` or from https://pnpm.io)
+- Docker (for local Supabase)
 
 ## Getting started
 
-1. **Install dependencies**
+1. Install dependencies
 
    ```bash
    pnpm install
    ```
 
-   Or run the helper script to install dependencies, provision Supabase, and
-   load seed data in one go:
-
-   ```bash
-   ./scripts/setup-local.sh
-   ```
-
-   Pass `--no-supabase`, `--no-seed`, or `--no-install` to customise which steps run.
-
-2. **Start Supabase locally**
+2. Start Supabase locally
 
    ```bash
    make supabase.up
@@ -37,110 +36,61 @@
    make seed
    ```
 
-3. **Run services**
+3. Run the services you need
 
    ```bash
-   make dev
+   pnpm --filter @ovida/api dev      # REST API
+   pnpm --filter @ovida/ws dev       # WebSocket server
+   pnpm --filter @ovida/web dev      # Next.js operator console
+   pnpm --filter @ovida/app dev      # Expo app (press w/i/a to open targets)
    ```
 
-   - Launch the web console with `pnpm --filter @ovida/web dev` to explore the demo, player, room, replay, and admin surfaces in the browser.
-   - Launch the Expo app with `pnpm --filter @ovida/app dev` and explore the 3-step demo.
+See `.env.example` for the variables the services expect.
 
-See `.env.example` for the environment variables required by each service.
+## DreamHost / SSH deployment
 
-## Deployment scripts and automation
+The repository ships with `scripts/deploy/dreamhost.sh` to automate deployment to a shell host such as DreamHost. The script:
 
-### Local packaging helpers
+1. Connects to the remote host over SSH.
+2. Clones or updates the public repository (`https://github.com/ovida/ovida.git` by default).
+3. Installs dependencies with `pnpm install --frozen-lockfile`.
+4. Builds the Next.js operator console in production mode.
+5. Copies the standalone build into the specified site directory (defaults to `~/ovida.1976.cloud`).
 
-- `make dev` – boots every workspace that participates in the development experience.
-- `make supabase.up` / `make supabase.down` – manage the local Supabase containers.
-- `make supabase.mig` – applies the latest Supabase migrations to keep the database schema in sync.
-- `make seed` – loads baseline data for development and demo purposes.
-- `scripts/setup-local.sh` – convenience wrapper that installs dependencies
-  and optionally provisions Supabase.
-- `scripts/package-deploy.sh` – builds, runs quality checks, and prepares a
-  deployable bundle identical to the GitHub Actions output.
-
-### SFTP deployment workflow
-
-This repository ships with a reusable GitHub Actions workflow that bundles the project files and deploys them to **any** SFTP-accessible web host. It can run automatically on every push to `main`, or manually with custom connection details.
-
-- `.github/workflows/deploy.yml` – CI/CD workflow that builds the deployment package and publishes it to the remote server over SFTP.
-- `.gitignore` – prevents the temporary `deploy/` directory created during the workflow from being committed.
-
-#### Required secrets / variables
-
-Create the following entries in `Settings → Secrets and variables → Actions`:
-
-| Name | Type | Description |
-|------|------|-------------|
-| `SFTP_HOST` | Secret or variable | Default hostname of the SFTP server. |
-| `SFTP_USERNAME` | Secret or variable | Default username used for authentication. |
-| `SFTP_PASSWORD` | Secret | Password for the SFTP user (leave empty when using SSH keys). |
-| `SFTP_SSH_KEY` | Secret | Private SSH key (PEM format). Leave empty when using passwords. |
-| `SFTP_PORT` | Secret or variable | Optional port override (defaults to `22`). |
-| `SFTP_REMOTE_DIR` | Secret or variable | Remote directory to upload into (e.g. `/var/www/html/`). |
-
-> **Tip:** Provide **either** `SFTP_PASSWORD` **or** `SFTP_SSH_KEY`. Supplying both will prefer the workflow dispatch input or secret for the SSH key.
-
-Secrets take precedence over variables for sensitive values. Use repository variables for non-sensitive defaults if you prefer to keep the host or username visible.
-
-#### Manual overrides via workflow dispatch
-
-When triggering the workflow from `Actions → Deploy via SFTP → Run workflow`, you can override any of the connection parameters:
-
-- **SFTP host**
-- **SFTP port**
-- **SFTP username**
-- **SFTP password**
-- **SFTP private SSH key**
-- **Remote target directory**
-
-Leave a field blank to fall back to the stored secret/variable.
-
-#### How the workflow works
-
-1. **Checkout** – pulls the repository contents.
-2. **Prepare deployment package** – copies repository files into a temporary `deploy/` directory, excluding Git metadata and workflow files.
-3. **Deploy** – uploads the `deploy/` directory to the configured SFTP destination, deleting files on the server that no longer exist locally.
-
-#### Running the workflow
-
-- Push or merge into the `main` branch to trigger an automatic deployment using the saved secrets/variables.
-- Trigger the workflow manually from the GitHub Actions tab to provide alternative credentials or deploy from another branch.
-
-#### Verifying the deployment
-
-- Once the workflow succeeds, browse to your site's URL to confirm the latest version is available.
-- Inspect the job logs under the `Actions` tab for upload details and confirmation of the target directory.
-
-#### Local validation (optional)
-
-You can test SFTP credentials locally with `lftp` or a similar client. After connecting, change to the configured remote directory and confirm that you have write permissions. Never commit credentials to the repository; always store them as GitHub secrets or variables.
-
-## Screen captures
-
-Before recording new captures, run the web console so the UI reflects the latest changes:
+Run it from your machine:
 
 ```bash
-pnpm --filter @ovida/web dev
+./scripts/deploy/dreamhost.sh deployer@ovida.1976.cloud
 ```
 
-Open the local URL in your browser (typically `http://localhost:3000`) and sign in with a demo account if required. Navigate to the relevant surface, ensure sample data is loaded, and then take the screenshot.
+Optional arguments let you override the target directory and checkout folder:
 
-Use the following checklist when capturing UI walkthroughs. Store images under `docs/images/` so they can be referenced from this document.
-
-| Capture | Suggested filename | Description |
-|---------|--------------------|-------------|
-| Home screen | `docs/images/home-screen.png` | Landing surface showing the live narrative overview and quick-start actions. |
-| Room management | `docs/images/room-management.png` | Operator console for creating rooms, managing participants, and monitoring votes in real time. |
-| Replay timeline | `docs/images/replay-timeline.png` | Playback interface displaying the branching narrative timeline, beat metadata, and controls. |
-| Admin tools | `docs/images/admin-tools.png` | Administrative dashboard highlighting content moderation, policy overrides, and deployment health. |
-
-Update the table with additional rows as new surfaces are introduced. Embed each screenshot below with Markdown, for example:
-
-```markdown
-![Ovida home screen](docs/images/home-screen.png)
+```bash
+./scripts/deploy/dreamhost.sh deployer@ovida.1976.cloud ~/ovida.1976.cloud ~/ovida-deploy
 ```
 
-Include concise captions beneath each image describing the narrative context showcased in the capture.
+Environment variables `REPO_URL` and `BRANCH` customise the repository clone, e.g. `BRANCH=work ./scripts/deploy/dreamhost.sh ...`.
+
+### Remote host requirements
+
+- SSH access with Git available (DreamHost provides both).
+- Node.js 18+ and npm. The script will install pnpm using Corepack or npm if necessary.
+- Enough space for both the checkout directory and the deployed standalone build.
+
+After the script completes, start the server from the site directory:
+
+```bash
+cd ~/ovida.1976.cloud
+NODE_ENV=production PORT=3000 node server.js
+```
+
+Adjust the port to match your process manager or proxy configuration.
+
+## Testing
+
+Use the workspace scripts provided by TurboRepo:
+
+```bash
+pnpm lint
+pnpm test
+```
