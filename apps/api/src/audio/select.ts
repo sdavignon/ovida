@@ -3,7 +3,6 @@ import { ElevenLabsEngine } from './engines/elevenlabs';
 import { OpenAIRealtimeEngine } from './engines/openai-realtime';
 import { getAudioMode, realtimeEnabled, isProdLike } from './flags';
 
-// Simple policy switch: per story, per mode
 export type EngineChoice = 'elevenlabs' | 'openai-realtime';
 
 export function chooseEngine(params: {

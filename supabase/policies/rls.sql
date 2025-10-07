@@ -8,7 +8,8 @@ create policy if not exists "profiles_read_public" on public.profiles
 for select using (true);
 
 create policy if not exists "profiles_user_update" on public.profiles
-for update using (auth.uid() = user_id);
+for update using (auth.uid() = user_id)
+with check (auth.uid() = user_id and role = 'user');
 
 create policy if not exists "runs_select_public_or_owner" on public.runs
 for select using (

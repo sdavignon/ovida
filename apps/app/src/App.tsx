@@ -5,6 +5,7 @@ import DemoScreen from './screens/Demo';
 import PlayerScreen from './screens/Player';
 import ReplayScreen from './screens/Replay';
 import RoomScreen from './screens/Room';
+import AdminScreen from './screens/Admin';
 
 const Stack = createNativeStackNavigator();
 
@@ -16,6 +17,7 @@ export default function App() {
         <Stack.Screen name="Player" component={PlayerScreen} />
         <Stack.Screen name="Replay" component={ReplayScreen} />
         <Stack.Screen name="Room" component={RoomScreen} />
+        <Stack.Screen name="Admin" component={AdminScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

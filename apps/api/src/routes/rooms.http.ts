@@ -46,9 +46,22 @@ export async function startLiveBeat(
   const synth = await engine.synthesize(narration, { ...ctx, persist: false });
 
   if (synth.kind === 'stream') {
-    await publishRoomEvent(app, roomId, { type: 'AUDIO_STREAM_START' });
+    await publishRoomEvent(app, roomId, {
+      type: 'AUDIO_STREAM_START',
+      provider: synth.provider,
+      session: synth.session,
+      soundstage: synth.soundstage,
+      narrator: synth.narrator,
+    });
   } else {
-    await publishRoomEvent(app, roomId, { type: 'AUDIO_START', urls: synth.urls, mime: synth.mime });
+    await publishRoomEvent(app, roomId, {
+      type: 'AUDIO_START',
+      provider: synth.provider,
+      urls: synth.urls,
+      mime: synth.mime,
+      soundstage: synth.soundstage,
+      narrator: synth.narrator,
+    });
   }
 
   return synth;

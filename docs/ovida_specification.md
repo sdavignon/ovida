@@ -36,7 +36,8 @@ An interactive narrative medium blending deterministic AI-assisted generation, h
 
 ### External services
 
-- **ElevenLabs TTS:** narration streaming.
+- **ElevenLabs TTS:** narration streaming with vintage post-processing.
+- **OpenAI Realtime Audio:** live narration sessions for rooms and branching reveals.
 - **Google OIDC:** authentication.
 
 ## 3. Database Schema (Key Tables)
@@ -140,7 +141,13 @@ create table sessions (
   1. LLM generates beat (JSON only).
   2. Validation (schema, profanity mask, policy).
   3. Optional revision pass.
-  4. Stream to ElevenLabs TTS.
+  4. Stream to ElevenLabs TTS with old-time radio mastering and Foley plan.
+
+### Audio & Foley Soundstage
+
+- **Narration Profiles:** consistent "golden age" announcer EQ applied across ElevenLabs and OpenAI Realtime outputs.
+- **Soundstage Planner:** keyword-driven ambience beds (e.g., harbor tide, orbital hum) and Foley cues (door creaks, thunder) rendered alongside narration metadata.
+- **Realtime Hand-off:** OpenAI Realtime sessions include ephemeral tokens plus Foley cues so clients can sync sound effects during live rooms.
 - Safe Mode: softens profanity, prevents disallowed branches.
 
 ## 6. Determinism & Caching
