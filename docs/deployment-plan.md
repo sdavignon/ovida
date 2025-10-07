@@ -108,7 +108,8 @@ jobs:
             set -euo pipefail
             cd ${{ secrets.DEPLOY_PATH }}
             mkdir -p releases current shared
-            tar xzf releases/${{ env.RELEASE_NAME }}.tar.gz -C releases
+            mkdir -p releases/${{ env.RELEASE_NAME }}
+            tar xzf releases/${{ env.RELEASE_NAME }}.tar.gz -C releases/${{ env.RELEASE_NAME }}
             ln -sfn releases/${{ env.RELEASE_NAME }} current
             if [ -n "${{ secrets.DEPLOY_ENV }}" ]; then
               echo "${{ secrets.DEPLOY_ENV }}" > shared/.env.production
