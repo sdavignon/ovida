@@ -57,49 +57,33 @@ This repository ships with a reusable GitHub Actions workflow that bundles the p
 
 #### Required secrets / variables
 
-Create the following entries in `Settings → Secrets and variables → Actions`:
+## Deployment options
 
-| Name | Type | Description |
-|------|------|-------------|
-| `SFTP_HOST` | Secret or variable | Default hostname of the SFTP server. |
-| `SFTP_USERNAME` | Secret or variable | Default username used for authentication. |
-| `SFTP_PASSWORD` | Secret | Password for the SFTP user (leave empty when using SSH keys). |
-| `SFTP_SSH_KEY` | Secret | Private SSH key (PEM format). Leave empty when using passwords. |
-| `SFTP_PORT` | Secret or variable | Optional port override (defaults to `22`). |
-| `SFTP_REMOTE_DIR` | Secret or variable | Remote directory to upload into (e.g. `/var/www/html/`). |
+### GitHub Actions SFTP workflow
 
-> **Tip:** Provide **either** `SFTP_PASSWORD` **or** `SFTP_SSH_KEY`. Supplying both will prefer the workflow dispatch input or secret for the SSH key.
+The repository includes `.github/workflows/deploy.yml`, a reusable workflow that bundles the repository and pushes it to any SFTP-accessible host. It can run automatically on every push to `main` or be dispatched manually with different credentials.
 
-Secrets take precedence over variables for sensitive values. Use repository variables for non-sensitive defaults if you prefer to keep the host or username visible.
+Store the following values under **Settings → Secrets and variables → Actions** to supply defaults:
 
 #### Manual overrides via workflow dispatch
 
-When triggering the workflow from `Actions → Deploy via SFTP → Run workflow`, you can override any of the connection parameters:
+> Provide **either** `SFTP_PASSWORD` **or** `SFTP_SSH_KEY`. Supplying both prefers the SSH key supplied through workflow dispatch or secrets.
 
-- **SFTP host**
-- **SFTP port**
-- **SFTP username**
-- **SFTP password**
-- **SFTP private SSH key**
-- **Remote target directory**
+When triggering the workflow manually from **Actions → Deploy via SFTP → Run workflow**, you can override any of the connection parameters (host, port, username, password, SSH key, remote directory). Leave fields blank to fall back to the stored secrets or variables.
 
-Leave a field blank to fall back to the stored secret/variable.
+Under the hood the workflow:
 
 #### How the workflow works
 
-1. **Checkout** – pulls the repository contents.
-2. **Prepare deployment package** – copies repository files into a temporary `deploy/` directory, excluding Git metadata and workflow files.
-3. **Deploy** – uploads the `deploy/` directory to the configured SFTP destination, deleting files on the server that no longer exist locally.
+After the run succeeds, browse to your site's URL to confirm the new build and inspect the workflow logs for upload details.
 
 #### Running the workflow
 
-- Push or merge into the `main` branch to trigger an automatic deployment using the saved secrets/variables.
-- Trigger the workflow manually from the GitHub Actions tab to provide alternative credentials or deploy from another branch.
+`scripts/deploy/dreamhost.sh` automates deployments to shell hosts (such as DreamHost). The script:
 
 #### Verifying the deployment
 
-- Once the workflow succeeds, browse to your site's URL to confirm the latest version is available.
-- Inspect the job logs under the `Actions` tab for upload details and confirmation of the target directory.
+Run it from your machine:
 
 #### Local validation (optional)
 
