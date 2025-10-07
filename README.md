@@ -1,17 +1,24 @@
 # Ovida Monorepo
 
-"The story that lives" — a deterministic, replayable, AI-assisted narrative platform.
+"The story that lives" — a deterministic, replayable, AI-assisted narrative platform. This monorepo provides the mobile, web, and backend pieces that power Ovida experiences.
 
 ## Applications
 
-This repository is organised as a pnpm workspace with the following projects:
+The workspace is managed with pnpm and contains:
+- **apps/api** – Fastify OpenAPI-first service backed by Supabase Postgres and Auth
+- **apps/ws** – WebSocket coordinator for live rooms and voting atop Supabase Realtime
+- **apps/app** – Expo client (web + native) that drives demo, playback, and rooms
+- **apps/web** – Next.js operator console for demos, replays, rooms, and admin tooling
+- **packages/schemas** – Shared zod models for beats, replays, and policy definitions
+- **packages/sdk** – Typed SDK generated from the OpenAPI contract
+- **supabase/** – SQL migrations, seeds, and RLS policies for core data structures
 
 - **apps/api** – Fastify HTTP API backed by Supabase for persistence and auth.
 - **apps/ws** – WebSocket coordinator for live rooms and voting.
 - **apps/app** – Expo client for iOS, Android, and web.
 - **apps/web** – Next.js operator console for demos, replays, rooms, and admin tooling.
 - **packages/schemas** – Shared Zod models.
-- **packages/sdk** – Generated SDK that mirrors the HTTP contract.
+- **packages/sdk** – Generated SDK mirroring the HTTP contract.
 - **supabase/** – SQL migrations, seeds, and RLS policies.
 
 ## Prerequisites
@@ -47,9 +54,35 @@ This repository is organised as a pnpm workspace with the following projects:
 
 See `.env.example` for the variables the services expect.
 
-## DreamHost / SSH deployment
+## Deployment options
 
-The repository ships with `scripts/deploy/dreamhost.sh` to automate deployment to a shell host such as DreamHost. The script:
+### GitHub Actions SFTP workflow
+
+The repository includes `.github/workflows/deploy.yml`, a reusable workflow that bundles the repository and pushes it to any SFTP-accessible host. It can run automatically on every push to `main` or be dispatched manually with different credentials.
+
+Store the following values under **Settings → Secrets and variables → Actions** to supply defaults:
+
+   ```bash
+   make supabase.up
+   make supabase.mig
+   make seed
+   ```
+
+> Provide **either** `SFTP_PASSWORD` **or** `SFTP_SSH_KEY`. Supplying both prefers the SSH key supplied through workflow dispatch or secrets.
+
+When triggering the workflow manually from **Actions → Deploy via SFTP → Run workflow**, you can override any of the connection parameters (host, port, username, password, SSH key, remote directory). Leave fields blank to fall back to the stored secrets or variables.
+
+Under the hood the workflow:
+
+1. Checks out the repository.
+2. Copies the contents into a temporary `deploy/` directory, excluding Git metadata and workflow files.
+3. Uploads the bundle to the configured SFTP destination, deleting files on the server that no longer exist locally.
+
+After the run succeeds, browse to your site's URL to confirm the new build and inspect the workflow logs for upload details.
+
+### DreamHost / SSH deployment script
+
+`scripts/deploy/dreamhost.sh` automates deployments to shell hosts (such as DreamHost). The script:
 
 1. Connects to the remote host over SSH.
 2. Clones or updates the public repository (`https://github.com/ovida/ovida.git` by default).
@@ -69,12 +102,12 @@ Optional arguments let you override the target directory and checkout folder:
 ./scripts/deploy/dreamhost.sh deployer@ovida.1976.cloud ~/ovida.1976.cloud ~/ovida-deploy
 ```
 
-Environment variables `REPO_URL` and `BRANCH` customise the repository clone, e.g. `BRANCH=work ./scripts/deploy/dreamhost.sh ...`.
+Environment variables `REPO_URL` and `BRANCH` customise the repository clone, e.g. `BRANCH=work ./scripts/deploy/dreamhost.sh deployer@ovida.1976.cloud`.
 
-### Remote host requirements
+**Remote host requirements**
 
-- SSH access with Git available (DreamHost provides both).
-- Node.js 18+ and npm. The script will install pnpm using Corepack or npm if necessary.
+- SSH access with Git available.
+- Node.js 18+ and npm. The script installs pnpm using Corepack or npm when required.
 - Enough space for both the checkout directory and the deployed standalone build.
 
 After the script completes, start the server from the site directory:
@@ -85,6 +118,9 @@ NODE_ENV=production PORT=3000 node server.js
 ```
 
 Adjust the port to match your process manager or proxy configuration.
+
+## Testing
+4. Launch the web console (`pnpm --filter @ovida/web dev`) to explore the demo, player, room, replay, and admin surfaces in the browser.
 
 ## Testing
 
