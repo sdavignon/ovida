@@ -13,6 +13,7 @@ import { registerStoryRoutes } from './routes/stories';
 import { registerRunRoutes } from './routes/runs';
 import { registerReplayRoutes } from './routes/replays';
 import { registerRoomRoutes } from './routes/rooms.http';
+import { registerSceneImageRoutes } from './routes/scenes.images';
 
 const bootstrap = async () => {
   const env = loadEnv();
@@ -34,6 +35,7 @@ const bootstrap = async () => {
   await registerRunRoutes(app);
   await registerReplayRoutes(app);
   await registerRoomRoutes(app);
+  await registerSceneImageRoutes(app);
 
   try {
     await app.listen({ port: env.PORT, host: '0.0.0.0' });
