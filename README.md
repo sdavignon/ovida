@@ -20,6 +20,15 @@
    pnpm install
    ```
 
+   Or run the helper script to install dependencies, provision Supabase, and
+   load seed data in one go:
+
+   ```bash
+   ./scripts/setup-local.sh
+   ```
+
+   Pass `--no-supabase`, `--no-seed`, or `--no-install` to customise which steps run.
+
 2. **Start Supabase locally**
 
    ```bash
@@ -47,6 +56,10 @@ See `.env.example` for the environment variables required by each service.
 - `make supabase.up` / `make supabase.down` – manage the local Supabase containers.
 - `make supabase.mig` – applies the latest Supabase migrations to keep the database schema in sync.
 - `make seed` – loads baseline data for development and demo purposes.
+- `scripts/setup-local.sh` – convenience wrapper that installs dependencies
+  and optionally provisions Supabase.
+- `scripts/package-deploy.sh` – builds, runs quality checks, and prepares a
+  deployable bundle identical to the GitHub Actions output.
 
 ### SFTP deployment workflow
 
