@@ -2,42 +2,21 @@ name: Deploy via SFTP
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
     inputs:
-      sftp_host:
-        description: "Override SFTP host (optional)"
-        required: false
-        type: string
-      sftp_port:
-        description: "Override SFTP port (optional)"
-        required: false
-        type: string
-      sftp_username:
-        description: "Override SFTP username (optional)"
-        required: false
-        type: string
-      sftp_password:
-        description: "Override SFTP password (optional, ignored when SSH key provided)"
-        required: false
-        type: string
-      sftp_private_key:
-        description: "Override SFTP private SSH key (optional)"
-        required: false
-        type: string
-      sftp_remote_dir:
-        description: "Override remote target directory (optional)"
-        required: false
-        type: string
+      sftp_host:       { description: "Override SFTP host", required: false, type: string }
+      sftp_port:       { description: "Override SFTP port", required: false, type: string }
+      sftp_username:   { description: "Override SFTP username", required: false, type: string }
+      sftp_password:   { description: "Override SFTP password", required: false, type: string }
+      sftp_private_key:{ description: "Override SFTP SSH key", required: false, type: string }
+      sftp_remote_dir: { description: "Override remote dir", required: false, type: string }
 
 jobs:
   deploy:
-    name: Upload site via SFTP
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Prepare deployment package
@@ -49,20 +28,21 @@ jobs:
             --exclude='deploy/' \
             ./ deploy/
 
-      - name: Deploy to SFTP server
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Upload site via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
-          server: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_host || secrets.SFTP_HOST }}
-          username: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_username || secrets.SFTP_USERNAME }}
-          password: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_password || secrets.SFTP_PASSWORD }}
-          private-key: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_private_key || secrets.SFTP_SSH_KEY }}
-          protocol: sftp
-          port: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_port || secrets.SFTP_PORT || '22' }}
-          server-dir: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_remote_dir || secrets.SFTP_REMOTE_DIR || '.' }}
-          local-dir: deploy/
-          dry-run: false
+          server:           ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_host        || secrets.SFTP_HOST }}
+          username:         ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_username    || secrets.SFTP_USERNAME }}
+          # Use ONE auth method:
+          password:         ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_password    || secrets.SFTP_PASSWORD }}
+          ssh_private_key:  ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_private_key || secrets.SFTP_SSH_PRIVATE_KEY }}
+          port:             ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_port        || secrets.SFTP_PORT || '22' }}
+          local_path:       "deploy/*"
+          remote_path:      ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_remote_dir  || secrets.SFTP_REMOTE_PATH }}
+          sftp_only:        true
+          delete_remote_files: false
           exclude: |
             **/.git*
-            **/.github*
+            **/.github/**
+            **/node_modules/**
             **/.DS_Store
-            **/node_modules
