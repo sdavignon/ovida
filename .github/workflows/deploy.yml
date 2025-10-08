@@ -1,46 +1,54 @@
-name: Deploy via SFTP
+name: Deploy Ovida Web (Static → DreamHost)
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      sftp_host:       { description: "Override SFTP host", required: false, type: string }
-      sftp_port:       { description: "Override SFTP port", required: false, type: string }
-      sftp_username:   { description: "Override SFTP username", required: false, type: string }
-      sftp_password:   { description: "Override SFTP password", required: false, type: string }
-      sftp_private_key:{ description: "Override SFTP SSH key", required: false, type: string }
-      sftp_remote_dir: { description: "Override remote dir", required: false, type: string }
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    env:
+      NODE_VERSION: '20'
+      WEB_DIR: apps/web
+      REMOTE_PATH: ${{ vars.REMOTE_PATH }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare deployment package
-        run: |
-          mkdir -p deploy
-          rsync -av --delete \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='deploy/' \
-            ./ deploy/
+      - name: Use Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
 
-      - name: Upload site via SFTP
+      # Use pnpm version from package.json
+      - name: Set up PNPM
+        uses: pnpm/action-setup@v4
+
+      - name: Install deps (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build @ovida/web
+        run: pnpm --filter @ovida/web build
+
+      - name: Static export
+        working-directory: ${{ env.WEB_DIR }}
+        run: npx next export -o out
+
+      - name: Upload via SFTP (password)
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
-          server:           ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_host        || secrets.SFTP_HOST }}
-          username:         ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_username    || secrets.SFTP_USERNAME }}
-          # Use ONE auth method:
-          password:         ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_password    || secrets.SFTP_PASSWORD }}
-          ssh_private_key:  ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_private_key || secrets.SFTP_SSH_PRIVATE_KEY }}
-          port:             ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_port        || secrets.SFTP_PORT || '22' }}
-          local_path:       "deploy/*"
-          remote_path:      ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_remote_dir  || secrets.SFTP_REMOTE_PATH }}
-          sftp_only:        true
-          delete_remote_files: false
+          server: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          sftp_only: true
+          local_path: ${{ env.WEB_DIR }}/out/*
+          remote_path: ${{ env.REMOTE_PATH }}
+          delete_remote_files: true
           exclude: |
             **/.git*
             **/.github/**
