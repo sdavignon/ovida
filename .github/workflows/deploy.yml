@@ -13,6 +13,9 @@ jobs:
       NODE_VERSION: '20'
       WEB_DIR: apps/web
       REMOTE_PATH: ${{ vars.REMOTE_PATH }}
+      # Static build environment variables (if needed)
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: 1
 
     steps:
       - name: Checkout
@@ -34,12 +37,36 @@ jobs:
 
       - name: Build @ovida/web
         run: pnpm --filter @ovida/web build
+        env:
+          # Add any build-time environment variables here if needed
+          # NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          # NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          # NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NODE_ENV: production
 
       - name: Verify build output
         run: |
           echo "Checking build output..."
+          if [ ! -d "${{ env.WEB_DIR }}/out" ]; then
+            echo "Error: Build output directory not found!"
+            echo "Expected: ${{ env.WEB_DIR }}/out"
+            echo "Contents of ${{ env.WEB_DIR }}:"
+            ls -la ${{ env.WEB_DIR }}/
+            exit 1
+          fi
+          
+          echo "Build output directory found:"
           ls -la ${{ env.WEB_DIR }}/out/
-          echo "Build verification complete"
+          
+          file_count=$(find ${{ env.WEB_DIR }}/out -type f | wc -l)
+          echo "Total files to deploy: $file_count"
+          
+          if [ "$file_count" -eq 0 ]; then
+            echo "Error: No files found in build output!"
+            exit 1
+          fi
+          
+          echo "Build verification complete ✅"
 
       - name: Upload via SFTP (password)
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
@@ -58,3 +85,11 @@ jobs:
             **/node_modules/**
             **/.DS_Store
             **/.next/cache/**
+
+      - name: Deployment Summary
+        if: success()
+        run: |
+          echo "🚀 Deployment completed successfully!"
+          echo "📁 Files deployed to: ${{ vars.REMOTE_PATH }}"
+          echo "🌐 Your site should be available at: https://ovida.1976.cloud"
+          echo "⏰ Deployment completed at: $(date)"
