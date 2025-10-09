@@ -1,0 +1,8 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/player/[runId]/page": "app/player/[runId]/page.js",
+  "/room/[runId]/page": "app/room/[runId]/page.js",
+  "/page": "app/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/replay/[runId]/page": "app/replay/[runId]/page.js"
+}
