@@ -1,0 +1,117 @@
+
+> @ovida/api@0.1.0 build /home/dh_rt2c39/ovida/apps/api
+> tsc -p tsconfig.json
+
+[96msrc/audio/soundstage.spec.ts[0m:[93m4[0m:[93m47[0m - [91merror[0m[90m TS2344: [0mType 'string' does not satisfy the constraint 'any[]'.
+
+[7m4[0m const randomUUIDMock = vi.hoisted(() => vi.fn<string, []>());
+[7m [0m [91m                                              ~~~~~~[0m
+
+[96msrc/audio/soundstage.spec.ts[0m:[93m40[0m:[93m45[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type '[]'.
+
+[7m40[0m     randomUUIDMock.mockImplementation(() => uuidSequence[call++] ?? 'fallback');
+[7m  [0m [91m                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96m../../node_modules/.pnpm/@vitest+spy@1.6.1/node_modules/@vitest/spy/dist/index.d.ts[0m:[93m149[0m:[93m31[0m
+    [7m149[0m     mockImplementation: (fn: ((...args: TArgs) => TReturns)) => this;
+    [7m   [0m [96m                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    The expected type comes from the return type of this signature.
+
+[96msrc/audio/soundstage.spec.ts[0m:[93m68[0m:[93m36[0m - [91merror[0m[90m TS2345: [0mArgument of type 'string' is not assignable to parameter of type '[]'.
+
+[7m68[0m     randomUUIDMock.mockReturnValue('unused');
+[7m  [0m [91m                                   ~~~~~~~~[0m
+
+[96msrc/services/auth.supabase.spec.ts[0m:[93m27[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'Mock<[], { select: Mock<[], { eq: Mock<[], { maybeSingle: Mock<any, any>; }>; maybeSingle: Mock<any, any>; }>; insert: Mock<[], { select: Mock<[], { single: Mock<any, any>; }>; }>; }>' is not assignable to type 'Mock<any[], unknown>'.
+  Types of property 'mockImplementation' are incompatible.
+    Types of parameters 'fn' and 'fn' are incompatible.
+      Type 'unknown' is not assignable to type '{ select: Mock<[], { eq: Mock<[], { maybeSingle: Mock<any, any>; }>; maybeSingle: Mock<any, any>; }>; insert: Mock<[], { select: Mock<[], { single: Mock<any, any>; }>; }>; }'.
+
+[7m27[0m     from,
+[7m  [0m [91m    ~~~~[0m
+
+  [96msrc/services/auth.supabase.spec.ts[0m:[93m7[0m:[93m3[0m
+    [7m7[0m   from: ReturnType<typeof vi.fn>;
+    [7m [0m [96m  ~~~~[0m
+    The expected type comes from property 'from' which is declared here on type 'MockReturn'
+
+[96msrc/services/auth.supabase.spec.ts[0m:[93m28[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'Mock<[], { eq: Mock<[], { maybeSingle: Mock<any, any>; }>; maybeSingle: Mock<any, any>; }>' is not assignable to type 'Mock<any[], unknown>'.
+  Types of property 'mockImplementation' are incompatible.
+    Types of parameters 'fn' and 'fn' are incompatible.
+      Type 'unknown' is not assignable to type '{ eq: Mock<[], { maybeSingle: Mock<any, any>; }>; maybeSingle: Mock<any, any>; }'.
+
+[7m28[0m     select,
+[7m  [0m [91m    ~~~~~~[0m
+
+  [96msrc/services/auth.supabase.spec.ts[0m:[93m8[0m:[93m3[0m
+    [7m8[0m   select: ReturnType<typeof vi.fn>;
+    [7m [0m [96m  ~~~~~~[0m
+    The expected type comes from property 'select' which is declared here on type 'MockReturn'
+
+[96msrc/services/auth.supabase.spec.ts[0m:[93m29[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'Mock<[], { maybeSingle: Mock<any, any>; }>' is not assignable to type 'Mock<any[], unknown>'.
+  Types of property 'mockImplementation' are incompatible.
+    Types of parameters 'fn' and 'fn' are incompatible.
+      Type 'unknown' is not assignable to type '{ maybeSingle: Mock<any, any>; }'.
+
+[7m29[0m     eq,
+[7m  [0m [91m    ~~[0m
+
+  [96msrc/services/auth.supabase.spec.ts[0m:[93m9[0m:[93m3[0m
+    [7m9[0m   eq: ReturnType<typeof vi.fn>;
+    [7m [0m [96m  ~~[0m
+    The expected type comes from property 'eq' which is declared here on type 'MockReturn'
+
+[96msrc/services/auth.supabase.spec.ts[0m:[93m31[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'Mock<[], { select: Mock<[], { single: Mock<any, any>; }>; }>' is not assignable to type 'Mock<any[], unknown>'.
+  Types of property 'mockImplementation' are incompatible.
+    Types of parameters 'fn' and 'fn' are incompatible.
+      Type 'unknown' is not assignable to type '{ select: Mock<[], { single: Mock<any, any>; }>; }'.
+
+[7m31[0m     insert,
+[7m  [0m [91m    ~~~~~~[0m
+
+  [96msrc/services/auth.supabase.spec.ts[0m:[93m11[0m:[93m3[0m
+    [7m11[0m   insert: ReturnType<typeof vi.fn>;
+    [7m  [0m [96m  ~~~~~~[0m
+    The expected type comes from property 'insert' which is declared here on type 'MockReturn'
+
+[96msrc/services/auth.supabase.spec.ts[0m:[93m32[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'Mock<[], { single: Mock<any, any>; }>' is not assignable to type 'Mock<any[], unknown>'.
+  Types of property 'mockImplementation' are incompatible.
+    Types of parameters 'fn' and 'fn' are incompatible.
+      Type 'unknown' is not assignable to type '{ single: Mock<any, any>; }'.
+
+[7m32[0m     selectAfterInsert,
+[7m  [0m [91m    ~~~~~~~~~~~~~~~~~[0m
+
+  [96msrc/services/auth.supabase.spec.ts[0m:[93m12[0m:[93m3[0m
+    [7m12[0m   selectAfterInsert: ReturnType<typeof vi.fn>;
+    [7m  [0m [96m  ~~~~~~~~~~~~~~~~~[0m
+    The expected type comes from property 'selectAfterInsert' which is declared here on type 'MockReturn'
+
+[96msrc/services/images.openai.spec.ts[0m:[93m38[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'MockInstance<[input: string | URL | Request, init?: RequestInit | undefined], Promise<Response>>' is not assignable to type 'MockInstance<unknown[], unknown>'.
+  The types returned by 'getMockImplementation()' are incompatible between these types.
+    Type '((input: string | URL | Request, init?: RequestInit | undefined) => Promise<Response>) | undefined' is not assignable to type '((...args: unknown[]) => unknown) | undefined'.
+      Type '(input: string | URL | Request, init?: RequestInit | undefined) => Promise<Response>' is not assignable to type '(...args: unknown[]) => unknown'.
+        Types of parameters 'input' and 'args' are incompatible.
+          Type 'unknown' is not assignable to type 'string | URL | Request'.
+
+[7m38[0m     fetchSpy = vi.spyOn(global, 'fetch');
+[7m  [0m [91m    ~~~~~~~~[0m
+
+[96msrc/services/images.openai.spec.ts[0m:[93m60[0m:[93m65[0m - [91merror[0m[90m TS2339: [0mProperty 'body' does not exist on type '{}'.
+
+[7m60[0m     const firstCallBody = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+[7m  [0m [91m                                                                ~~~~[0m
+
+[96msrc/services/images.openai.spec.ts[0m:[93m61[0m:[93m66[0m - [91merror[0m[90m TS2339: [0mProperty 'body' does not exist on type '{}'.
+
+[7m61[0m     const secondCallBody = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
+[7m  [0m [91m                                                                 ~~~~[0m
+
+
+Found 11 errors in 3 files.
+
+Errors  Files
+     3  src/audio/soundstage.spec.ts[90m:4[0m
+     5  src/services/auth.supabase.spec.ts[90m:27[0m
+     3  src/services/images.openai.spec.ts[90m:38[0m
+[41m[30m ELIFECYCLE [39m[49m [31mCommand failed with exit code 2.[39m

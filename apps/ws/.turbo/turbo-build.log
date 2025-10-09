@@ -1,0 +1,4 @@
+
+> @ovida/ws@0.1.0 build /home/dh_rt2c39/ovida/apps/ws
+> tsc -p tsconfig.json
+
