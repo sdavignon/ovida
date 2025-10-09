@@ -5,36 +5,10 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import styles from './page.module.css';
 
-type DemoChoice = {
-  id: string;
-  text: string;
-};
-
-type DemoBeat = {
-  index: number;
-  narration: string;
-  choices: DemoChoice[];
-};
-
-type DemoAudio = {
-  provider: string;
-  urls: string[];
-  mime: string;
-  soundstage?: Record<string, unknown>;
-  narrator?: Record<string, unknown>;
-};
-
-type DemoGuardrails = {
-  flags: string[];
-  sanitizedNarration: string;
-};
-
 type DemoResponse = {
   guest_id: string;
   run_id: string;
-  beat: DemoBeat;
-  audio: DemoAudio;
-  guardrails: DemoGuardrails;
+  beat: { narration: string };
 };
 
 export default function HomePage() {
@@ -48,20 +22,6 @@ export default function HomePage() {
     try {
       const payload = await apiFetch<DemoResponse>('/v1/demos/start', { method: 'POST' });
       setDemo(payload);
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.setItem(
-            `ovida-demo:${payload.run_id}`,
-            JSON.stringify({
-              beat: payload.beat,
-              audio: payload.audio,
-              guest_id: payload.guest_id,
-            }),
-          );
-        } catch (storageError) {
-          console.warn('Unable to cache demo start payload', storageError);
-        }
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to start demo');
     } finally {

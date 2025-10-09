@@ -1,68 +1,108 @@
-name: Deploy via SFTP
+name: Deploy Ovida Web (Static → DreamHost)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
-    inputs:
-      sftp_host:
-        description: "Override SFTP host (optional)"
-        required: false
-        type: string
-      sftp_port:
-        description: "Override SFTP port (optional)"
-        required: false
-        type: string
-      sftp_username:
-        description: "Override SFTP username (optional)"
-        required: false
-        type: string
-      sftp_password:
-        description: "Override SFTP password (optional, ignored when SSH key provided)"
-        required: false
-        type: string
-      sftp_private_key:
-        description: "Override SFTP private SSH key (optional)"
-        required: false
-        type: string
-      sftp_remote_dir:
-        description: "Override remote target directory (optional)"
-        required: false
-        type: string
 
 jobs:
   deploy:
-    name: Upload site via SFTP
     runs-on: ubuntu-latest
 
+    env:
+      NODE_VERSION: '20'
+      WEB_DIR: apps/web
+      REMOTE_PATH: ${{ vars.REMOTE_PATH }}
+      # Static build environment variables (if needed)
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: 1
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare deployment package
-        run: |
-          mkdir -p deploy
-          rsync -av --delete \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='deploy/' \
-            ./ deploy/
-
-      - name: Deploy to SFTP server
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Use Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
         with:
-          server: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_host || secrets.SFTP_HOST }}
-          username: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_username || secrets.SFTP_USERNAME }}
-          password: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_password || secrets.SFTP_PASSWORD }}
-          private-key: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_private_key || secrets.SFTP_SSH_KEY }}
-          protocol: sftp
-          port: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_port || secrets.SFTP_PORT || '22' }}
-          server-dir: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sftp_remote_dir || secrets.SFTP_REMOTE_DIR || '.' }}
-          local-dir: deploy/
-          dry-run: false
+          node-version: ${{ env.NODE_VERSION }}
+          # Remove pnpm cache until pnpm is installed
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.6
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build @ovida/web
+        run: pnpm --filter @ovida/web build
+        env:
+          # Add any build-time environment variables here if needed
+          # NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          # NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          # NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NODE_ENV: production
+
+      - name: Verify build output
+        run: |
+          echo "Checking build output..."
+          if [ ! -d "${{ env.WEB_DIR }}/out" ]; then
+            echo "Error: Build output directory not found!"
+            echo "Expected: ${{ env.WEB_DIR }}/out"
+            echo "Contents of ${{ env.WEB_DIR }}:"
+            ls -la ${{ env.WEB_DIR }}/
+            exit 1
+          fi
+          
+          echo "Build output directory found:"
+          ls -la ${{ env.WEB_DIR }}/out/
+          
+          file_count=$(find ${{ env.WEB_DIR }}/out -type f | wc -l)
+          echo "Total files to deploy: $file_count"
+          
+          if [ "$file_count" -eq 0 ]; then
+            echo "Error: No files found in build output!"
+            exit 1
+          fi
+          
+          echo "Build verification complete ✅"
+
+      - name: Upload via SFTP (password)
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          server: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          sftp_only: true
+          local_path: '${{ env.WEB_DIR }}/out/'
+          remote_path: ${{ vars.REMOTE_PATH }}
+          delete_remote_files: true
           exclude: |
             **/.git*
-            **/.github*
+            **/.github/**
+            **/node_modules/**
             **/.DS_Store
-            **/node_modules
+            **/.next/cache/**
+
+      - name: Deployment Summary
+        if: success()
+        run: |
+          echo "🚀 Deployment completed successfully!"
+          echo "📁 Files deployed to: ${{ vars.REMOTE_PATH }}"
+          echo "🌐 Your site should be available at: https://ovida.1976.cloud"
+          echo "⏰ Deployment completed at: $(date)"

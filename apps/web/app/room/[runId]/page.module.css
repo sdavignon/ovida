@@ -16,6 +16,7 @@
   margin-bottom: 12px;
 }
 
+.action {
 .voteButton {
   width: fit-content;
   padding: 12px 18px;
@@ -27,6 +28,7 @@
   cursor: pointer;
 }
 
+.action:disabled {
 .voteButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -38,6 +40,7 @@
   gap: 8px;
 }
 
+.status {
 .header span {
   font-size: 13px;
   font-weight: 600;
