@@ -1,37 +1,39 @@
 import { apiOrigin } from './config';
-const apiOrigin = process.env.NEXT_PUBLIC_API_ORIGIN ?? 'http://localhost:4000';
 
 type ApiOptions = RequestInit & { skipJson?: boolean };
 
-export async function apiFetch<T>(path: string, init?: ApiOptions): Promise<T> {
-  const response = await fetch(`${apiOrigin}${path}`, {
+export const api = {
+  get: (path: string, options?: ApiOptions) => request('GET', path, options),
+  post: (path: string, options?: ApiOptions) => request('POST', path, options),
+  put: (path: string, options?: ApiOptions) => request('PUT', path, options),
+  delete: (path: string, options?: ApiOptions) => request('DELETE', path, options),
+  patch: (path: string, options?: ApiOptions) => request('PATCH', path, options),
+};
+
+async function request(
+  method: string,
+  path: string,
+  options: ApiOptions = {}
+): Promise<any> {
+  const { skipJson, ...fetchOptions } = options;
+  const url = `${apiOrigin}${path}`;
+  
+  const response = await fetch(url, {
+    method,
     headers: {
       'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
+      ...fetchOptions.headers,
     },
-    ...init,
+    ...fetchOptions,
   });
 
   if (!response.ok) {
-    const message = await safeReadError(response);
-    throw new Error(message);
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  if (init?.skipJson) {
-    return undefined as T;
+  if (skipJson) {
+    return response;
   }
 
-  return (await response.json()) as T;
-}
-
-async function safeReadError(res: Response) {
-  try {
-    const data = await res.json();
-    if (typeof data?.message === 'string') {
-      return data.message;
-    }
-  } catch (error) {
-    // ignore
-  }
-  return `Request failed with status ${res.status}`;
+  return response.json();
 }
