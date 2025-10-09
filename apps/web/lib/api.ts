@@ -3,15 +3,15 @@ import { apiOrigin } from './config';
 type ApiOptions = RequestInit & { skipJson?: boolean };
 
 export const api = {
-  get: (path: string, options?: ApiOptions) => request('GET', path, options),
-  post: (path: string, options?: ApiOptions) => request('POST', path, options),
-  put: (path: string, options?: ApiOptions) => request('PUT', path, options),
-  delete: (path: string, options?: ApiOptions) => request('DELETE', path, options),
-  patch: (path: string, options?: ApiOptions) => request('PATCH', path, options),
+  get: <T = any>(path: string, options?: ApiOptions): Promise<T> => request<T>('GET', path, options),
+  post: <T = any>(path: string, options?: ApiOptions): Promise<T> => request<T>('POST', path, options),
+  put: <T = any>(path: string, options?: ApiOptions): Promise<T> => request<T>('PUT', path, options),
+  delete: <T = any>(path: string, options?: ApiOptions): Promise<T> => request<T>('DELETE', path, options),
+  patch: <T = any>(path: string, options?: ApiOptions): Promise<T> => request<T>('PATCH', path, options),
 };
 
-// Legacy export for backwards compatibility
-export const apiFetch = async (path: string, options?: RequestInit): Promise<any> => {
+// Legacy export for backwards compatibility with generic support
+export const apiFetch = async <T = any>(path: string, options?: RequestInit): Promise<T> => {
   const url = `${apiOrigin}${path}`;
   const response = await fetch(url, {
     headers: {
@@ -25,14 +25,14 @@ export const apiFetch = async (path: string, options?: RequestInit): Promise<any
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  return response.json();
+  return response.json() as T;
 };
 
-async function request(
+async function request<T = any>(
   method: string,
   path: string,
   options: ApiOptions = {}
-): Promise<any> {
+): Promise<T> {
   const { skipJson, ...fetchOptions } = options;
   const url = `${apiOrigin}${path}`;
   
@@ -50,8 +50,8 @@ async function request(
   }
 
   if (skipJson) {
-    return response;
+    return response as T;
   }
 
-  return response.json();
+  return response.json() as T;
 }
