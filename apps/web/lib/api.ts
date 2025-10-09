@@ -10,6 +10,24 @@ export const api = {
   patch: (path: string, options?: ApiOptions) => request('PATCH', path, options),
 };
 
+// Legacy export for backwards compatibility
+export const apiFetch = async (path: string, options?: RequestInit): Promise<any> => {
+  const url = `${apiOrigin}${path}`;
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+};
+
 async function request(
   method: string,
   path: string,
