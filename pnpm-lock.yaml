@@ -31,7 +31,7 @@ importers:
         version: link:../../packages/schemas
       '@supabase/supabase-js':
         specifier: ^2.43.4
-        version: 2.58.0
+        version: 2.75.0
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -74,7 +74,7 @@ importers:
         version: 6.11.0(@react-navigation/native@6.1.18)(react-native-safe-area-context@4.14.1)(react-native-screens@3.37.0)(react-native@0.74.1)(react@18.2.0)
       '@supabase/supabase-js':
         specifier: ^2.43.4
-        version: 2.58.0
+        version: 2.75.0
       expo:
         specifier: ^51.0.7
         version: 51.0.39(@babel/core@7.28.4)(@babel/preset-env@7.28.3)(react-native@0.74.1)(react@18.2.0)
@@ -112,99 +112,6 @@ importers:
       eslint-config-expo:
         specifier: ^10.0.0
         version: 10.0.0(eslint@8.57.0)(typescript@5.4.5)
-      typescript:
-        specifier: ^5.4.5
-        version: 5.4.5
-
-  apps/web:
-    dependencies:
-      next:
-        specifier: 14.2.3
-        version: 14.2.3(react-dom@18.3.1)(react@18.3.1)
-      react:
-        specifier: 18.3.1
-        version: 18.3.1
-      react-dom:
-        specifier: 18.3.1
-        version: 18.3.1(react@18.3.1)
-    devDependencies:
-      '@types/node':
-        specifier: 20.12.7
-        version: 20.12.7
-      '@types/react':
-        specifier: 18.2.79
-        version: 18.2.79
-      '@types/react-dom':
-        specifier: 18.2.25
-        version: 18.2.25
-      eslint:
-        specifier: 8.57.0
-        version: 8.57.0
-      eslint-config-next:
-        specifier: 14.2.3
-        version: 14.2.3(eslint@8.57.0)(typescript@5.4.5)
-      typescript:
-        specifier: 5.4.5
-        version: 5.4.5
-
-  apps/ws:
-    dependencies:
-      '@fastify/websocket':
-        specifier: ^8.3.0
-        version: 8.3.1
-      '@supabase/supabase-js':
-        specifier: ^2.43.4
-        version: 2.58.0
-      fastify:
-        specifier: ^4.26.2
-        version: 4.29.1
-    devDependencies:
-      '@types/node':
-        specifier: ^20.12.7
-        version: 20.12.7
-      tsx:
-        specifier: ^4.7.1
-        version: 4.20.6
-      typescript:
-        specifier: ^5.4.5
-        version: 5.4.5
-
-  packages/schemas:
-    dependencies:
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^20.12.7
-        version: 20.12.7
-      eslint:
-        specifier: ^8.57.0
-        version: 8.57.0
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.0(typescript@5.4.5)
-      typescript:
-        specifier: ^5.4.5
-        version: 5.4.5
-      vitest:
-        specifier: ^1.5.0
-        version: 1.6.1(@types/node@20.12.7)
-
-  packages/sdk:
-    devDependencies:
-      '@types/node':
-        specifier: ^18.19.50
-        version: 18.19.129
-      eslint:
-        specifier: ^8.57.0
-        version: 8.57.0
-      openapi-typescript:
-        specifier: ^7.3.1
-        version: 7.9.1(typescript@5.4.5)
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.0(typescript@5.4.5)
       typescript:
         specifier: ^5.4.5
         version: 5.4.5
