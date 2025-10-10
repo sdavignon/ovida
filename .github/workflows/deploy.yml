@@ -13,6 +13,7 @@ jobs:
       NODE_VERSION: '20'
       WEB_DIR: apps/web
       REMOTE_PATH: ${{ vars.REMOTE_PATH }}
+      # Static build environment variables (if needed)
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: 1
 
@@ -39,17 +40,23 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-pnpm-store-v2-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+            ${{ runner.os }}-pnpm-store-v2-
 
       - name: Install dependencies (root)
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
-      - name: Install TypeScript dependencies for web app
+      - name: Verify TypeScript dependencies
         run: |
+          echo "Checking if @types/react is installed..."
           cd apps/web
-          pnpm install --save-dev @types/react @types/react-dom @types/node typescript
+          if [ -d "node_modules/@types/react" ]; then
+            echo "✓ @types/react is installed"
+          else
+            echo "✗ @types/react is NOT installed, installing now..."
+            pnpm install
+          fi
           cd ../..
 
       - name: Build @ovida/web
