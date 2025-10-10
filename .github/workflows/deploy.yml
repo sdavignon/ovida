@@ -13,7 +13,6 @@ jobs:
       NODE_VERSION: '20'
       WEB_DIR: apps/web
       REMOTE_PATH: ${{ vars.REMOTE_PATH }}
-      # Static build environment variables (if needed)
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: 1
 
@@ -25,7 +24,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # Remove pnpm cache until pnpm is installed
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -48,13 +46,15 @@ jobs:
       - name: Install dependencies (root)
         run: pnpm install --no-frozen-lockfile
 
+      - name: Install TypeScript dependencies for web app
+        run: |
+          cd apps/web
+          pnpm install --save-dev @types/react @types/react-dom @types/node typescript
+          cd ../..
+
       - name: Build @ovida/web
         run: pnpm --filter @ovida/web build
         env:
-          # Add any build-time environment variables here if needed
-          # NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-          # NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          # NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           NODE_ENV: production
 
       - name: Verify build output
