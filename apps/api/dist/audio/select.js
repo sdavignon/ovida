@@ -1,22 +1,30 @@
 import { ElevenLabsEngine } from './engines/elevenlabs';
+import { CoquiEngine } from './engines/coqui';
 import { OpenAIRealtimeEngine } from './engines/openai-realtime';
-import { getAudioMode, isProdLike, realtimeEnabled } from './flags';
+import { getAudioMode, realtimeEnabled, isProdLike, getFileAudioEngine } from './flags';
 export function chooseEngine(params) {
     const audioMode = getAudioMode();
-    if (audioMode === 'files') {
-        return 'elevenlabs';
-    }
-    if (audioMode === 'realtime') {
+    const fileEngine = getFileAudioEngine();
+    // Hard overrides
+    if (audioMode === 'files')
+        return fileEngine;
+    if (audioMode === 'realtime')
         return 'openai-realtime';
-    }
     if (params.storyVoicePolicy === 'premium') {
-        return 'elevenlabs';
+        return fileEngine;
     }
+    // AUTO mode: dev uses files; prod/staging uses realtime for rooms if enabled
     if (params.mode === 'room-live' && isProdLike() && realtimeEnabled()) {
         return 'openai-realtime';
     }
-    return 'elevenlabs';
+    return fileEngine;
 }
 export function getEngine(choice) {
-    return choice === 'openai-realtime' ? new OpenAIRealtimeEngine() : new ElevenLabsEngine();
+    if (choice === 'openai-realtime') {
+        return new OpenAIRealtimeEngine();
+    }
+    if (choice === 'coqui') {
+        return new CoquiEngine();
+    }
+    return new ElevenLabsEngine();
 }

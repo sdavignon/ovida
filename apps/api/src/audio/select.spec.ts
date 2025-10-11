@@ -2,6 +2,7 @@ import { beforeEach, afterAll, describe, expect, it } from 'vitest';
 import { chooseEngine, getEngine } from './select';
 import { ElevenLabsEngine } from './engines/elevenlabs';
 import { OpenAIRealtimeEngine } from './engines/openai-realtime';
+import { CoquiEngine } from './engines/coqui';
 
 type Env = NodeJS.ProcessEnv;
 
@@ -17,8 +18,9 @@ afterAll(() => {
 
 describe('chooseEngine', () => {
   it('prefers explicit audio mode overrides', () => {
+    process.env.AUDIO_FILE_ENGINE = 'coqui';
     process.env.AUDIO_MODE = 'files';
-    expect(chooseEngine({ mode: 'run' })).toBe('elevenlabs');
+    expect(chooseEngine({ mode: 'run' })).toBe('coqui');
 
     process.env.AUDIO_MODE = 'realtime';
     expect(chooseEngine({ mode: 'run' })).toBe('openai-realtime');
@@ -27,6 +29,9 @@ describe('chooseEngine', () => {
   it('returns elevenlabs when story policy requires premium voices', () => {
     process.env.AUDIO_MODE = 'auto';
     expect(chooseEngine({ mode: 'run', storyVoicePolicy: 'premium' })).toBe('elevenlabs');
+
+    process.env.AUDIO_FILE_ENGINE = 'coqui';
+    expect(chooseEngine({ mode: 'run', storyVoicePolicy: 'premium' })).toBe('coqui');
   });
 
   it('enables realtime engine for live rooms in prod-like envs', () => {
@@ -43,12 +48,16 @@ describe('chooseEngine', () => {
     process.env.REALTIME_ENABLED = 'false';
 
     expect(chooseEngine({ mode: 'room-live' })).toBe('elevenlabs');
+
+    process.env.AUDIO_FILE_ENGINE = 'coqui';
+    expect(chooseEngine({ mode: 'room-live' })).toBe('coqui');
   });
 });
 
 describe('getEngine', () => {
   it('instantiates the corresponding engine implementation', () => {
     expect(getEngine('elevenlabs')).toBeInstanceOf(ElevenLabsEngine);
+    expect(getEngine('coqui')).toBeInstanceOf(CoquiEngine);
     expect(getEngine('openai-realtime')).toBeInstanceOf(OpenAIRealtimeEngine);
   });
 });

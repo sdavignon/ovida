@@ -20,7 +20,7 @@ export type RealtimeSessionDescriptor = {
 
 export type FileSynthResult = {
   kind: 'files';
-  provider: 'elevenlabs' | 'mock';
+  provider: 'elevenlabs' | 'coqui' | 'mock';
   urls: string[];
   mime: string;
   soundstage: SoundstagePlan;
