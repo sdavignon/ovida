@@ -1,6 +1,6 @@
 # Ovida API
 
-Fastify-based API service delivering deterministic storytelling beats, Supabase-backed persistence, and integrations with guardrails and ElevenLabs.
+Fastify-based API service delivering deterministic storytelling beats, Supabase-backed persistence, and integrations with guardrails and ElevenLabs (or local Coqui TTS).
 
 ## Development
 
