@@ -14,7 +14,6 @@ jobs:
       WEB_DIR: apps/web
       REMOTE_PATH: ${{ vars.REMOTE_PATH }}
       # Static build environment variables (if needed)
-      NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: 1
 
     steps:
@@ -46,6 +45,8 @@ jobs:
 
       - name: Install dependencies (root)
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_ENV: development
 
       - name: Verify TypeScript dependencies
         run: |
