@@ -18,9 +18,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <h1 className={styles.title}>Ovida</h1>
             <nav className={styles.nav}>
               <Link href="/">Demo</Link>
-              <Link href="/player/demo">Player</Link>
-              <Link href="/replay/demo">Replay</Link>
-              <Link href="/room/demo">Room</Link>
+              <Link href={{ pathname: '/player', query: { runId: 'demo' } }}>Player</Link>
+              <Link href={{ pathname: '/replay', query: { runId: 'demo' } }}>Replay</Link>
+              <Link href={{ pathname: '/room', query: { runId: 'demo' } }}>Room</Link>
               <Link href="/admin">Admin</Link>
             </nav>
           </aside>

@@ -1,13 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { resolveRunId } from '@/lib/run-id';
 import styles from './page.module.css';
 
 type ReplayPayload = Record<string, unknown>;
 
-export default function ReplayPage({ params }: { params: { runId: string } }) {
-  const { runId } = params;
+function ReplayContent() {
+  const searchParams = useSearchParams();
+  const runId = resolveRunId(searchParams?.get('runId'));
   const [replay, setReplay] = useState<ReplayPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,14 +32,24 @@ export default function ReplayPage({ params }: { params: { runId: string } }) {
     };
   }, [runId]);
 
+  const heading = useMemo(() => `Run ${runId}`, [runId]);
+
   return (
     <section className={styles.replay}>
       <header>
         <p className={styles.eyebrow}>Replay</p>
-        <h2>Run {runId}</h2>
+        <h2>{heading}</h2>
       </header>
       {error && <p className={styles.error}>{error}</p>}
       <pre className={styles.log}>{JSON.stringify(replay, null, 2)}</pre>
     </section>
+  );
+}
+
+export default function ReplayPage() {
+  return (
+    <Suspense fallback={<section className={styles.replay}>Loading replay…</section>}>
+      <ReplayContent />
+    </Suspense>
   );
 }

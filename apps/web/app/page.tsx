@@ -48,7 +48,10 @@ export default function HomePage() {
           {loading ? 'Starting…' : 'Start Demo'}
         </button>
         {demo && (
-          <Link className={styles.primaryLink} href={`/player/${demo.run_id}`}>
+          <Link
+            className={styles.primaryLink}
+            href={{ pathname: '/player', query: { runId: demo.run_id } }}
+          >
             Open Player
           </Link>
         )}

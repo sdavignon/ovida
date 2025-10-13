@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "cross-env NEXT_SHOULD_EXPORT=true next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
@@ -20,5 +20,7 @@
     "react-dom": "18.3.1",
     "typescript": "5.4.5"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
 }
