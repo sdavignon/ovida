@@ -10,7 +10,7 @@
     "test": "turbo test",
     "test:unit": "pnpm --filter @ovida/api test:unit",
     "build:web": "pnpm --filter @ovida/web build",
-    "export:web": "cross-env NEXT_SHOULD_EXPORT=true pnpm --filter @ovida/web exec next export -o out"
+    "export:web": "pnpm --filter @ovida/web build"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",

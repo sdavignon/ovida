@@ -9,5 +9,6 @@ build
 deploy/
 # Generated Next.js output
 **/.next
+**/out
 # pnpm diagnostics
 pnpm-debug.log
