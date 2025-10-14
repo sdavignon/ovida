@@ -148,6 +148,10 @@ importers:
       typescript:
         specifier: 5.4.5
         version: 5.4.5
+    devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
 
   apps/ws:
     dependencies:
