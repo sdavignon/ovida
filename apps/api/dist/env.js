@@ -24,6 +24,7 @@ const EnvSchema = z.object({
     VIDEO_PUBLIC_BASE_URL: z.string().url().optional(),
     VIDEO_MAX_INPUT_BYTES: z.coerce.number().positive().default(1_000_000_000),
     VIDEO_MAX_OVERLAY_BYTES: z.coerce.number().positive().default(50_000_000),
+    VIDEO_MAX_AUDIO_BYTES: z.coerce.number().positive().default(200_000_000),
     VIDEO_CALLBACK_TIMEOUT_MS: z.coerce.number().positive().max(60000).default(10000),
 });
 export const loadEnv = () => {
