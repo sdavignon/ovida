@@ -90,6 +90,7 @@ jobs:
           echo "Build verification complete ✅"
 
       - name: Upload via SFTP (password)
+        # Pin to v1.2.6 because newer tags such as v1.2.10 are not published.
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
           server: ${{ secrets.SSH_HOST }}
