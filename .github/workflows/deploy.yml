@@ -8,59 +8,37 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: Production
 
     env:
       NODE_VERSION: '20'
       WEB_DIR: apps/web
-      REMOTE_PATH: ${{ vars.REMOTE_PATH }}
-      # Static build environment variables (if needed)
+      BUILD_OUTPUT_DIR: apps/web/out
+      REMOTE_PATH: ${{ vars.REMOTE_PATH != '' && vars.REMOTE_PATH || secrets.REMOTE_PATH }}
       NEXT_TELEMETRY_DISABLED: 1
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Use Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          fetch-depth: 0
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 8.15.6
 
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
+      - name: Use Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
         with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-v2-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-v2-
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install dependencies (root)
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        env:
-          NODE_ENV: development
 
-      - name: Verify TypeScript dependencies
-        run: |
-          echo "Checking if @types/react is installed..."
-          cd apps/web
-          if [ -d "node_modules/@types/react" ]; then
-            echo "✓ @types/react is installed"
-          else
-            echo "✗ @types/react is NOT installed, installing now..."
-            pnpm install
-          fi
-          cd ../..
-
-      - name: Build @ovida/web
+      - name: Build Next.js application
         run: pnpm --filter @ovida/web build
         env:
           NODE_ENV: production
@@ -68,45 +46,136 @@ jobs:
       - name: Verify build output
         run: |
           echo "Checking build output..."
-          if [ ! -d "${{ env.WEB_DIR }}/out" ]; then
-            echo "Error: Build output directory not found!"
-            echo "Expected: ${{ env.WEB_DIR }}/out"
-            echo "Contents of ${{ env.WEB_DIR }}:"
-            ls -la ${{ env.WEB_DIR }}/
+          if [ ! -d "${BUILD_OUTPUT_DIR}" ]; then
+            echo "❌ Error: Build output directory not found!"
+            echo "Expected: ${BUILD_OUTPUT_DIR}"
+            ls -la "${WEB_DIR}"
             exit 1
           fi
-          
-          echo "Build output directory found:"
-          ls -la ${{ env.WEB_DIR }}/out/
-          
-          file_count=$(find ${{ env.WEB_DIR }}/out -type f | wc -l)
-          echo "Total files to deploy: $file_count"
-          
-          if [ "$file_count" -eq 0 ]; then
-            echo "Error: No files found in build output!"
-            exit 1
-          fi
-          
-          echo "Build verification complete ✅"
 
-      - name: Upload via SFTP (password)
-        # Pin to v1.2.6 because newer tags such as v1.2.10 are not published.
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+          echo "✅ Build output directory found: ${BUILD_OUTPUT_DIR}"
+          ls -la "${BUILD_OUTPUT_DIR}"
+
+          file_count=$(find "${BUILD_OUTPUT_DIR}" -type f | wc -l)
+          echo "📄 Total files to deploy: ${file_count}"
+
+          if [ "${file_count}" -eq 0 ]; then
+            echo "❌ Error: No files found in build output!"
+            exit 1
+          fi
+
+      - name: Validate deployment configuration
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          REMOTE_PATH: ${{ env.REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          missing=()
+
+          if [ -z "${SSH_HOST}" ]; then
+            missing+=("SSH_HOST")
+          fi
+
+          if [ -z "${SSH_USER}" ]; then
+            missing+=("SSH_USER")
+          fi
+
+          if [ -z "${REMOTE_PATH}" ]; then
+            missing+=("REMOTE_PATH (repo variable or secret)")
+          fi
+
+          if [ -z "${SSH_PASSWORD}" ] && [ -z "${SSH_KEY}" ]; then
+            missing+=("SSH_PASSWORD or SSH_KEY")
+          fi
+
+          if [ ${#missing[@]} -ne 0 ]; then
+            printf '❌ Missing deployment configuration: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+          echo "✅ Deployment configuration looks good."
+
+      - name: Ensure remote directory exists
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          server: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT || '22' }}
+          host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
-          sftp_only: true
-          local_path: '${{ env.WEB_DIR }}/out/'
-          remote_path: ${{ vars.REMOTE_PATH }}
-          delete_remote_files: true
-          rsyncArgs: '--exclude=.git* --exclude=.github/** --exclude=node_modules/** --exclude=.DS_Store --exclude=.next/cache/**'
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            mkdir -p "${{ env.REMOTE_PATH }}"
+
+      - name: Upload build via SCP
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          LOCAL_BUILD_DIR: ${{ env.BUILD_OUTPUT_DIR }}
+          REMOTE_PATH: ${{ env.REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+
+          if [ ! -d "${LOCAL_BUILD_DIR}" ]; then
+            echo "❌ Local build directory ${LOCAL_BUILD_DIR} is missing."
+            exit 1
+          fi
+
+          if [ -z "${REMOTE_PATH}" ]; then
+            echo "❌ Remote path is empty."
+            exit 1
+          fi
+
+          REMOTE_DIR="${REMOTE_PATH%/}"
+          if [ -z "${REMOTE_DIR}" ]; then
+            REMOTE_DIR="/"
+          fi
+
+          DEST="${SSH_USER}@${SSH_HOST}:${REMOTE_DIR}/"
+
+          echo "📦 Uploading build to ${DEST}"
+
+          if [ -n "${SSH_PASSWORD}" ]; then
+            if ! command -v sshpass >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y sshpass
+            fi
+
+            sshpass -p "${SSH_PASSWORD}" \
+              scp -P "${SSH_PORT}" -o StrictHostKeyChecking=no -r "${LOCAL_BUILD_DIR}/." "${DEST}"
+          elif [ -n "${SSH_KEY}" ]; then
+            mkdir -p ~/.ssh
+            KEY_FILE=~/.ssh/id_deploy
+            printf '%s\n' "${SSH_KEY}" > "${KEY_FILE}"
+            chmod 600 "${KEY_FILE}"
+
+            scp -i "${KEY_FILE}" -P "${SSH_PORT}" -o StrictHostKeyChecking=no -r "${LOCAL_BUILD_DIR}/." "${DEST}"
+            rm -f "${KEY_FILE}"
+          else
+            echo "❌ No SSH credentials provided. Set SSH_PASSWORD or SSH_KEY."
+            exit 1
+          fi
+
+      - name: Verify remote upload
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            echo "Listing recent files in ${{ env.REMOTE_PATH }}"
+            ls -la "${{ env.REMOTE_PATH }}" | head
 
       - name: Deployment Summary
         if: success()
         run: |
           echo "🚀 Deployment completed successfully!"
-          echo "📁 Files deployed to: ${{ vars.REMOTE_PATH }}"
-          echo "🌐 Your site should be available at: https://ovida.1976.cloud"
-          echo "⏰ Deployment completed at: $(date)"
+          echo "📁 Files deployed to: ${{ env.REMOTE_PATH }}"
+          echo "🌐 Site should now be live at your domain"
