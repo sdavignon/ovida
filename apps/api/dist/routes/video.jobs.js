@@ -31,6 +31,7 @@ const CreateJobBodySchema = z
     overlays: z.array(OverlaySchema).max(10).default([]),
     output_format: z.enum(['mp4', 'mov', 'mkv']).default('mp4'),
     callback_url: z.string().url().nullable().optional(),
+    audio_url: z.string().url().nullable().optional(),
 })
     .superRefine((data, ctx) => {
     data.overlays.forEach((overlay, index) => {
@@ -123,6 +124,7 @@ const mapCreatePayload = (body) => {
         overlays,
         outputFormat: body.output_format,
         callbackUrl: body.callback_url ?? undefined,
+        audioUrl: body.audio_url ?? undefined,
     };
 };
 const mapOverlayInstruction = (overlay) => {

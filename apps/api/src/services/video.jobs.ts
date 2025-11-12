@@ -41,6 +41,7 @@ export interface CreateVideoJobPayload {
   overlays: OverlayInstruction[];
   outputFormat: string;
   callbackUrl?: string | null;
+  audioUrl?: string | null;
 }
 
 export type VideoJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
@@ -83,6 +84,7 @@ export class VideoJobManager {
   private readonly outputRoot: string;
   private readonly maxInputBytes: number;
   private readonly maxOverlayBytes: number;
+  private readonly maxAudioBytes: number;
   private readonly callbackTimeoutMs: number;
   private readonly jobs = new Map<string, VideoJobInternal>();
   private queue: Promise<void> = Promise.resolve();
@@ -94,6 +96,7 @@ export class VideoJobManager {
     this.outputRoot = options.env.VIDEO_OUTPUT_DIR;
     this.maxInputBytes = options.env.VIDEO_MAX_INPUT_BYTES;
     this.maxOverlayBytes = options.env.VIDEO_MAX_OVERLAY_BYTES;
+    this.maxAudioBytes = options.env.VIDEO_MAX_AUDIO_BYTES;
     this.callbackTimeoutMs = options.env.VIDEO_CALLBACK_TIMEOUT_MS;
   }
 
@@ -218,6 +221,7 @@ export class VideoJobManager {
 
       const inputFile = await this.downloadSource(job);
       const overlays = await this.prepareOverlays(job);
+      const audio = await this.prepareAudio(job);
 
       this.updateJob(job.id, { progress: 15 });
 
@@ -226,7 +230,7 @@ export class VideoJobManager {
         this.updateJob(job.id, { durationSeconds: duration });
       }
 
-      const ffmpegArgs = this.buildFfmpegArgs(job, inputFile.path, overlays);
+      const ffmpegArgs = this.buildFfmpegArgs(job, inputFile.path, overlays, audio ?? undefined);
       const outputFilename = `${job.id}.${job.request.outputFormat}`;
       const outputPath = path.join(this.outputRoot, outputFilename);
 
@@ -298,12 +302,22 @@ export class VideoJobManager {
     job: VideoJobInternal,
     inputPath: string,
     overlayInputs: (LogoInputResource | null)[],
+    audioInput?: { path: string },
   ): string[] {
     const args: string[] = ['-y', '-i', inputPath];
+    let nextInputIndex = 1;
     for (const resource of overlayInputs) {
       if (resource) {
         args.push('-i', resource.path);
+        nextInputIndex += 1;
       }
+    }
+
+    let audioInputIndex: number | null = null;
+    if (audioInput) {
+      args.push('-i', audioInput.path);
+      audioInputIndex = nextInputIndex;
+      nextInputIndex += 1;
     }
 
     const { filterGraph, outputLabel } = this.buildFilterGraph(job, overlayInputs);
@@ -317,11 +331,32 @@ export class VideoJobManager {
       args.push('-map', '0:v');
     }
 
-    args.push('-map', '0:a?');
     args.push('-c:v', 'libx264', '-preset', 'medium', '-crf', '20');
-    args.push('-c:a', 'copy');
+    if (audioInput && audioInputIndex !== null) {
+      args.push('-map', `${audioInputIndex}:a:0`);
+      args.push('-c:a', 'aac', '-b:a', '192k');
+    } else {
+      args.push('-map', '0:a?');
+      args.push('-c:a', 'copy');
+    }
     args.push('-movflags', '+faststart');
     return args;
+  }
+
+  private async prepareAudio(job: VideoJobInternal) {
+    const audioUrl = job.request.audioUrl;
+    if (!audioUrl) {
+      return null;
+    }
+
+    const resource = await this.downloadToFile(audioUrl, job.tmpDir!, 'audio', {
+      fallbackExtension: '.mp3',
+      maxBytes: this.maxAudioBytes,
+      purpose: 'audio track',
+      allowedMime: /^audio\/(mpeg|wav|x-wav|wave)$/,
+    });
+
+    return { path: resource.path };
   }
 
   private buildFilterGraph(
@@ -621,6 +656,10 @@ export class VideoJobManager {
       'image/jpeg': '.jpg',
       'image/webp': '.webp',
       'image/gif': '.gif',
+      'audio/mpeg': '.mp3',
+      'audio/wav': '.wav',
+      'audio/x-wav': '.wav',
+      'audio/wave': '.wav',
     };
     return mapping[mime] ?? undefined;
   }

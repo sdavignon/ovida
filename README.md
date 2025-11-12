@@ -48,7 +48,7 @@
 - **Base URLs** – When running locally, use `http://localhost:4000/v1`. The frontends read `NEXT_PUBLIC_API_ORIGIN` and `NEXT_PUBLIC_WS_ORIGIN` from `.env` to talk to the API and websocket services.
 - **Session handling** – Authentication is delegated to Supabase. Client apps obtain an `sb-access-token` via Supabase Auth; pass it as a cookie or `sb-access-token` header. The API exposes helper routes such as `GET /v1/auth/session` (validate a session), `POST /v1/auth/logout`, and demo/run helpers under `/v1/demos/*` and `/v1/runs/*`.
 - **OpenAPI contract** – The HTTP surface is documented in `apps/api/src/openapi/ovida.yaml`. Regenerate the typed SDK with `pnpm --filter @ovida/sdk generate && pnpm --filter @ovida/sdk build`.
-- **Video jobs** – Video rendering endpoints require `ffmpeg`/`ffprobe` on the host and a `VIDEO_API_KEY`. Job payloads accept overlay instructions and can optionally notify external systems via the `callbackUrl` field.
+- **Video jobs** – Video rendering endpoints require `ffmpeg`/`ffprobe` on the host and a `VIDEO_API_KEY`. Job payloads accept overlay instructions, can replace the source audio by supplying an `audio_url` (MP3 or WAV), and can optionally notify external systems via the `callbackUrl` field.
 - **Quick check** – With Supabase running and the API booted, you can sanity check the service with:
 
   ```bash
@@ -66,7 +66,7 @@
   - ElevenLabs: `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL`, `ELEVENLABS_BASE_URL`, `ELEVENLABS_STREAMING`.
   - Coqui (local TTS fallback): `COQUI_TTS_URL`, `COQUI_TTS_SPEAKER`, `COQUI_TTS_LANGUAGE`, and other optional tuning values.
   - OpenAI realtime audio: `OPENAI_API_KEY`, `OPENAI_REALTIME_MODEL`, `OPENAI_REALTIME_BASE_URL`, `OPENAI_REALTIME_VOICE`.
-- **Video rendering** – `VIDEO_API_KEY` is required. Storage and limits are controlled with `VIDEO_TMP_DIR`, `VIDEO_OUTPUT_DIR`, `VIDEO_PUBLIC_BASE_URL`, `VIDEO_MAX_INPUT_BYTES`, `VIDEO_MAX_OVERLAY_BYTES`, and `VIDEO_CALLBACK_TIMEOUT_MS`. Ensure the directories exist or let the service create them with writable permissions.
+- **Video rendering** – `VIDEO_API_KEY` is required. Storage and limits are controlled with `VIDEO_TMP_DIR`, `VIDEO_OUTPUT_DIR`, `VIDEO_PUBLIC_BASE_URL`, `VIDEO_MAX_INPUT_BYTES`, `VIDEO_MAX_OVERLAY_BYTES`, `VIDEO_MAX_AUDIO_BYTES`, and `VIDEO_CALLBACK_TIMEOUT_MS`. Ensure the directories exist or let the service create them with writable permissions.
 - **Auth providers** – Configure Supabase OAuth (e.g., Google) by setting `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 - **Additional providers** – If you rely on OpenAI image generation, set `OPENAI_API_KEY` and (optionally) `OPENAI_API_BASE_URL`.
 - **Runtime environment** – `NODE_ENV` defaults to `development`; adjust to `production` in deployed environments alongside hardened CORS settings.
