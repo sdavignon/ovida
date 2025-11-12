@@ -61,15 +61,15 @@
 
 - **Environment files** – Copy `.env.example` to `.env` (or run `scripts/setup-local.sh`) and replace the placeholder values. The root `.env` is consumed by every workspace via `dotenv`.
 - **Supabase** – Populate `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_DB_URL`. You can copy these from the Supabase dashboard (`Settings → API` and `Settings → Database`). The service role key must stay server-side.
-- **Origins** – Set `API_ORIGIN`, `APP_ORIGIN`, `NEXT_PUBLIC_API_ORIGIN`, and `NEXT_PUBLIC_WS_ORIGIN` to the URLs your web, expo, and websocket clients use. They default to local development ports.
-- **Audio engines** – Control delivery with `AUDIO_MODE` (`files`, `realtime`, or `auto`) and `AUDIO_FILE_ENGINE` (`elevenlabs` or `coqui`). Provide provider credentials as needed:
+- **Origins** – Set `API_ORIGIN`, `APP_ORIGIN`, `WS_ORIGIN`, `NEXT_PUBLIC_API_ORIGIN`, and `NEXT_PUBLIC_WS_ORIGIN` to the URLs your web, expo, and websocket clients use. They default to local development ports.
+- **Audio engines** – Control delivery with `AUDIO_MODE` (`files`, `realtime`, or `auto`), `AUDIO_FILE_ENGINE` (`elevenlabs` or `coqui`), and `REALTIME_ENABLED` (guards WebRTC flow). Provide provider credentials as needed:
   - ElevenLabs: `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL`, `ELEVENLABS_BASE_URL`, `ELEVENLABS_STREAMING`.
-  - Coqui (local TTS fallback): `COQUI_TTS_URL`, `COQUI_TTS_SPEAKER`, `COQUI_TTS_LANGUAGE`, and other optional tuning values.
+  - Coqui (local TTS fallback): `COQUI_TTS_URL`, `COQUI_TTS_SPEAKER` (or `COQUI_TTS_VOICE`), `COQUI_TTS_LANGUAGE`, `COQUI_TTS_STYLE_WAV`, and `COQUI_TTS_SPEED`.
   - OpenAI realtime audio: `OPENAI_API_KEY`, `OPENAI_REALTIME_MODEL`, `OPENAI_REALTIME_BASE_URL`, `OPENAI_REALTIME_VOICE`.
 - **Video rendering** – `VIDEO_API_KEY` is required. Storage and limits are controlled with `VIDEO_TMP_DIR`, `VIDEO_OUTPUT_DIR`, `VIDEO_PUBLIC_BASE_URL`, `VIDEO_MAX_INPUT_BYTES`, `VIDEO_MAX_OVERLAY_BYTES`, `VIDEO_MAX_AUDIO_BYTES`, and `VIDEO_CALLBACK_TIMEOUT_MS`. Ensure the directories exist or let the service create them with writable permissions.
 - **Auth providers** – Configure Supabase OAuth (e.g., Google) by setting `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 - **Additional providers** – If you rely on OpenAI image generation, set `OPENAI_API_KEY` and (optionally) `OPENAI_API_BASE_URL`.
-- **Runtime environment** – `NODE_ENV` defaults to `development`; adjust to `production` in deployed environments alongside hardened CORS settings.
+- **Runtime environment** – `NODE_ENV` defaults to `development`; adjust to `production` in deployed environments alongside hardened CORS settings. `PORT` controls the API server port (defaults to 4000).
 
 Document any new environment variables in `.env.example` to keep this matrix current.
 
