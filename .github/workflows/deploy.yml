@@ -90,7 +90,7 @@ jobs:
           echo "Build verification complete ✅"
 
       - name: Upload via SFTP (password)
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.10
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
           server: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT || '22' }}
