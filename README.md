@@ -93,35 +93,163 @@ This repository ships with a reusable GitHub Actions workflow that bundles the p
 
 ## Deployment options
 
-### GitHub Actions SFTP workflow
+### Production deployment architecture
 
-The repository includes `.github/workflows/deploy.yml`, a reusable workflow that bundles the repository and pushes it to any SFTP-accessible host. It can run automatically on every push to `main` or be dispatched manually with different credentials.
+Ovida consists of three main components that need to be deployed:
 
-Store the following values under **Settings → Secrets and variables → Actions** to supply defaults:
+1. **Next.js Web App** (`apps/web`) - Static site deployed via SFTP
+2. **API Service** (`apps/api`) - Fastify server on port 4000
+3. **WebSocket Service** (`apps/ws`) - WebSocket server on port 4001
 
-#### Manual overrides via workflow dispatch
+### Deploying the web app (static)
 
-> Provide **either** `SFTP_PASSWORD` **or** `SFTP_SSH_KEY`. Supplying both prefers the SSH key supplied through workflow dispatch or secrets.
+The repository includes `.github/workflows/deploy.yml`, a workflow that builds the Next.js app as static files and deploys to any SFTP-accessible host.
 
-When triggering the workflow manually from **Actions → Deploy via SFTP → Run workflow**, you can override any of the connection parameters (host, port, username, password, SSH key, remote directory). Leave fields blank to fall back to the stored secrets or variables.
+**Configuration**: Store these values under **Settings → Secrets and variables → Actions**:
+- `SSH_HOST` - Your server hostname (e.g., ovida.1976.cloud)
+- `SSH_USER` - SSH username
+- `SSH_PASSWORD` or `SSH_KEY` - Authentication credentials
+- `REMOTE_PATH` - Deployment directory on the server
 
-Under the hood the workflow:
+The workflow runs automatically on pushes to `main` or can be triggered manually from the Actions tab.
 
-#### How the workflow works
+### Deploying the API and WebSocket services
 
-After the run succeeds, browse to your site's URL to confirm the new build and inspect the workflow logs for upload details.
+The API and WebSocket services require a Node.js runtime and are managed using PM2 (Process Manager 2).
 
-#### Running the workflow
+#### Prerequisites on the server
 
-`scripts/deploy/dreamhost.sh` automates deployments to shell hosts (such as DreamHost). The script:
+1. **Node.js 20+** installed
+2. **pnpm** installed (`npm install -g pnpm` or use corepack)
+3. **PM2** installed globally: `npm install -g pm2`
+4. **Environment configuration**: Create a `.env` file on the server with production values
 
-#### Verifying the deployment
+#### Deployment script
 
-Run it from your machine:
+Deploy services to production using the automated script:
 
-#### Local validation (optional)
+```bash
+scripts/deploy/services.sh user@ovida.1976.cloud
+```
 
-You can test SFTP credentials locally with `lftp` or a similar client. After connecting, change to the configured remote directory and confirm that you have write permissions. Never commit credentials to the repository; always store them as GitHub secrets or variables.
+This script will:
+1. Clone/update the repository on the server
+2. Install dependencies
+3. Build the API and WebSocket services
+4. Start or reload services using PM2
+5. Configure automatic restarts
+
+**Options**:
+```bash
+# Deploy from a specific branch
+BRANCH=production scripts/deploy/services.sh user@ovida.1976.cloud
+
+# Deploy to a custom directory
+scripts/deploy/services.sh --deploy-dir ~/custom-path user@ovida.1976.cloud
+
+# Deploy without restarting (for maintenance)
+scripts/deploy/services.sh --skip-restart user@ovida.1976.cloud
+```
+
+#### Manual service management
+
+If you need to manage services manually on the server:
+
+```bash
+# View service status
+pm2 status
+
+# View logs
+pm2 logs
+
+# Restart services
+pm2 restart all
+
+# Stop services
+pm2 stop all
+
+# Start services
+pm2 start ecosystem.config.cjs
+```
+
+#### Local service management
+
+For local development with PM2 (alternative to `make dev`):
+
+```bash
+# Build services first
+pnpm build
+
+# Start services
+scripts/services.sh start
+
+# View logs
+scripts/services.sh logs
+
+# Restart services
+scripts/services.sh restart
+
+# Stop services
+scripts/services.sh stop
+```
+
+#### Configuring services to start on boot
+
+On the production server:
+
+```bash
+# Generate startup script
+pm2 startup
+
+# Run the command PM2 outputs, then save the process list
+pm2 save
+```
+
+### Production environment variables
+
+For production deployment, configure these in your server's `.env` file:
+
+```bash
+# Set to production
+NODE_ENV=production
+
+# Production URLs (example for ovida.1976.cloud)
+API_ORIGIN=https://ovida.1976.cloud:4000
+APP_ORIGIN=https://ovida.1976.cloud
+WS_ORIGIN=wss://ovida.1976.cloud:4001/ws
+NEXT_PUBLIC_API_ORIGIN=https://ovida.1976.cloud:4000
+NEXT_PUBLIC_WS_ORIGIN=wss://ovida.1976.cloud:4001/ws
+
+# Supabase production credentials
+SUPABASE_URL=https://[project-ref].supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_DB_URL=postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
+
+# API keys and other production config
+ELEVENLABS_API_KEY=your-production-key
+OPENAI_API_KEY=your-production-key
+# ... other production values
+```
+
+See `.env.example` for a complete list of configuration options.
+
+### Firewall and port configuration
+
+Ensure your server firewall allows traffic on:
+- **Port 443** (HTTPS) - Web app
+- **Port 4000** (HTTPS) - API service
+- **Port 4001** (WSS) - WebSocket service
+
+### Verifying deployment
+
+After deployment:
+
+1. **Web app**: Visit `https://ovida.1976.cloud/`
+2. **API health**: `curl https://ovida.1976.cloud:4000/v1/demos/start`
+3. **WebSocket**: Connect to `wss://ovida.1976.cloud:4001/ws`
+4. **Service status**: `ssh user@ovida.1976.cloud "pm2 status"`
+5. **View logs**: `ssh user@ovida.1976.cloud "pm2 logs"`
 
 ## Screen captures
 
