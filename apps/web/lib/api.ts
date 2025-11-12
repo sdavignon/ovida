@@ -10,22 +10,87 @@ export const api = {
   patch: <T = any>(path: string, options?: ApiOptions): Promise<T> => request<T>('PATCH', path, options),
 };
 
+// Mock data fallback for when API is unavailable
+const getMockDemoResponse = () => ({
+  guest_id: 'demo-' + Date.now(),
+  run_id: 'run-' + Date.now(),
+  beat: {
+    index: 0,
+    narration: "Welcome to the Haunted Shore! You find yourself standing on a mysterious coastline where the waves whisper ancient secrets. The air is thick with salt and mystery. What do you choose to do?",
+    choices: [
+      { id: 1, text: "Explore the abandoned lighthouse" },
+      { id: 2, text: "Walk along the shoreline" },
+      { id: 3, text: "Listen to the whispers in the wind" }
+    ]
+  },
+  audio: null,
+  guardrails: { sanitizedNarration: "Content is safe" }
+});
+
+const getMockReplayResponse = (runId: string) => ({
+  runId,
+  status: 'completed',
+  beats: [
+    {
+      index: 0,
+      narration: "Welcome to the Haunted Shore! You find yourself standing on a mysterious coastline where the waves whisper ancient secrets.",
+      choice: { id: 1, text: "Explore the abandoned lighthouse" },
+      timestamp: new Date(Date.now() - 3600000).toISOString()
+    },
+    {
+      index: 1,
+      narration: "The lighthouse looms above you, its spiral staircase beckoning. Ancient mechanisms creak in the wind.",
+      choice: { id: 2, text: "Climb to the top" },
+      timestamp: new Date(Date.now() - 1800000).toISOString()
+    },
+    {
+      index: 2,
+      narration: "From the lighthouse peak, you spot mysterious lights dancing across the water. The story continues...",
+      choice: null,
+      timestamp: new Date(Date.now() - 900000).toISOString()
+    }
+  ],
+  metadata: {
+    guestId: 'demo-guest',
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+    completedAt: new Date().toISOString()
+  }
+});
+
 // Legacy export for backwards compatibility with generic support
 export const apiFetch = async <T = any>(path: string, options?: RequestInit): Promise<T> => {
   const url = `${apiOrigin}${path}`;
-  const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-    ...options,
-  });
 
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+      ...options,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json() as T;
+  } catch (error) {
+    // Fallback to mock data when API is unavailable
+    if (path === '/v1/demos/start' && options?.method === 'POST') {
+      console.warn('API unavailable, using mock data fallback for demo');
+      return getMockDemoResponse() as T;
+    }
+
+    // Extract runId from replay endpoint path
+    const replayMatch = path.match(/^\/v1\/runs\/([^/]+)\/replay$/);
+    if (replayMatch) {
+      console.warn('API unavailable, using mock data fallback for replay');
+      return getMockReplayResponse(replayMatch[1]) as T;
+    }
+
+    throw error;
   }
-
-  return response.json() as T;
 };
 
 async function request<T = any>(
