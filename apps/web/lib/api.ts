@@ -28,33 +28,43 @@ const getMockDemoResponse = () => ({
 });
 
 const getMockReplayResponse = (runId: string) => ({
-  runId,
-  status: 'completed',
-  beats: [
-    {
-      index: 0,
-      narration: "Welcome to the Haunted Shore! You find yourself standing on a mysterious coastline where the waves whisper ancient secrets.",
-      choice: { id: 1, text: "Explore the abandoned lighthouse" },
-      timestamp: new Date(Date.now() - 3600000).toISOString()
-    },
-    {
-      index: 1,
-      narration: "The lighthouse looms above you, its spiral staircase beckoning. Ancient mechanisms creak in the wind.",
-      choice: { id: 2, text: "Climb to the top" },
-      timestamp: new Date(Date.now() - 1800000).toISOString()
-    },
-    {
-      index: 2,
-      narration: "From the lighthouse peak, you spot mysterious lights dancing across the water. The story continues...",
-      choice: null,
-      timestamp: new Date(Date.now() - 900000).toISOString()
-    }
-  ],
-  metadata: {
-    guestId: 'demo-guest',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    completedAt: new Date().toISOString()
-  }
+  id: runId,
+  replay: {
+    version: '1.0',
+    story: { id: 'haunted-shore', title: 'Haunted Shore' },
+    engine: { llm: 'mock-llm', tts: 'mock-tts' },
+    seed: 42,
+    beats: [
+      {
+        index: 0,
+        narration:
+          'Welcome to the Haunted Shore! You find yourself standing on a mysterious coastline where the waves whisper ancient secrets.',
+        choices: [
+          { id: 'explore', text: 'Explore the abandoned lighthouse' },
+          { id: 'shoreline', text: 'Walk along the shoreline' },
+        ],
+      },
+      {
+        index: 1,
+        narration:
+          'The lighthouse looms above you, its spiral staircase beckoning. Ancient mechanisms creak in the wind.',
+        choices: [
+          { id: 'climb', text: 'Climb to the top' },
+          { id: 'listen', text: 'Listen for the whispers again' },
+        ],
+      },
+      {
+        index: 2,
+        narration:
+          'From the lighthouse peak, you spot mysterious lights dancing across the water. The story continues…',
+        choices: [
+          { id: 'signal', text: 'Signal to the lights' },
+          { id: 'retreat', text: 'Retreat to the shore' },
+        ],
+      },
+    ],
+    signature: 'mock-signature',
+  },
 });
 
 // Legacy export for backwards compatibility with generic support
