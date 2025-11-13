@@ -310,16 +310,15 @@ export default function ApiTestToolsPage() {
   });
   const [requests, setRequests] = useState<Record<string, RequestState>>(() => createInitialState());
 
-  const allTests = useMemo(
-    () =>
-      CATEGORY_DEFINITIONS.reduce<Record<string, ApiTestDefinition>>((accumulator, category) => {
-        category.tests.forEach((test) => {
-          accumulator[test.id] = test;
-        });
-        return accumulator;
-      }, {}),
-    [],
-  );
+  const allTests = useMemo(() => {
+    const accumulator: Record<string, ApiTestDefinition> = {};
+    CATEGORY_DEFINITIONS.forEach((category) => {
+      category.tests.forEach((test) => {
+        accumulator[test.id] = test;
+      });
+    });
+    return accumulator;
+  }, []);
 
   const resetTest = (testId: string) => {
     const test = allTests[testId];
@@ -542,7 +541,7 @@ export default function ApiTestToolsPage() {
                             },
                           }))
                         }
-                        placeholder="{\n  \"key\": \"value\"\n}"
+                        placeholder={`{\n  "key": "value"\n}`}
                       />
                     </label>
                   ) : (
@@ -563,7 +562,7 @@ export default function ApiTestToolsPage() {
                           },
                         }))
                       }
-                      placeholder="{\n  \"Authorization\": \"Bearer ...\"\n}"
+                      placeholder={`{\n  "Authorization": "Bearer ..."\n}`}
                     />
                   </label>
 
