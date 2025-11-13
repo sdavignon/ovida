@@ -3,6 +3,17 @@ alter table public.runs     enable row level security;
 alter table public.events   enable row level security;
 alter table public.rooms    enable row level security;
 alter table public.votes    enable row level security;
+alter table public.story_guides enable row level security;
+alter table public.story_chapters enable row level security;
+alter table public.story_scenes enable row level security;
+alter table public.voices enable row level security;
+alter table public.policy_versions enable row level security;
+alter table public.room_memberships enable row level security;
+alter table public.policy_flags enable row level security;
+alter table public.reports enable row level security;
+alter table public.admin_metrics enable row level security;
+alter table public.admin_activity_log enable row level security;
+alter table public.admin_control_settings enable row level security;
 
 create policy if not exists "profiles_read_public" on public.profiles
 for select using (true);
@@ -32,3 +43,120 @@ for select using (
 
 create policy if not exists "votes_select_public" on public.votes
 for select using (true);
+
+create policy if not exists "story_guides_select_public" on public.story_guides
+for select using (true);
+
+create policy if not exists "story_chapters_select_public" on public.story_chapters
+for select using (true);
+
+create policy if not exists "story_scenes_select_public" on public.story_scenes
+for select using (true);
+
+create policy if not exists "voices_select_public" on public.voices
+for select using (true);
+
+create policy if not exists "policy_versions_select_public" on public.policy_versions
+for select using (true);
+
+create policy if not exists "room_memberships_admin_select" on public.room_memberships
+for select using (
+  exists (
+    select 1 from public.profiles p
+    where p.user_id = auth.uid()
+      and p.role in ('admin','moderator','analyst','producer')
+  )
+);
+
+create policy if not exists "policy_flags_admin_select" on public.policy_flags
+for select using (
+  exists (
+    select 1 from public.profiles p
+    where p.user_id = auth.uid()
+      and p.role in ('admin','moderator','analyst')
+  )
+);
+
+create policy if not exists "policy_flags_admin_update" on public.policy_flags
+for update using (
+  exists (
+    select 1 from public.profiles p
+    where p.user_id = auth.uid()
+      and p.role in ('admin','moderator','analyst')
+  )
+) with check (
+  exists (
+    select 1 from public.profiles p
+    where p.user_id = auth.uid()
+      and p.role in ('admin','moderator','analyst')
+  )
+);
+
+create policy if not exists "reports_submit" on public.reports
+for insert with check (true);
+
+create policy if not exists "reports_admin_select" on public.reports
+for select using (
+  exists (
+    select 1 from public.profiles p
+    where p.user_id = auth.uid()
+      and p.role in ('admin','moderator','analyst')
+  )
+);
+
+create policy if not exists "reports_admin_update" on public.reports
+for update using (
+  exists (
+    select 1 from public.profiles p
+    where p.user_id = auth.uid()
+      and p.role in ('admin','moderator','analyst')
+  )
+) with check (
+  exists (
+    select 1 from public.profiles p
+    where p.user_id = auth.uid()
+      and p.role in ('admin','moderator','analyst')
+  )
+);
+
+create policy if not exists "admin_metrics_admin_select" on public.admin_metrics
+for select using (
+  exists (
+    select 1 from public.profiles p
+    where p.user_id = auth.uid()
+      and p.role in ('admin','moderator','analyst')
+  )
+);
+
+create policy if not exists "admin_activity_admin_select" on public.admin_activity_log
+for select using (
+  exists (
+    select 1 from public.profiles p
+    where p.user_id = auth.uid()
+      and p.role in ('admin','moderator','analyst')
+  )
+);
+
+create policy if not exists "admin_control_admin_select" on public.admin_control_settings
+for select using (
+  exists (
+    select 1 from public.profiles p
+    where p.user_id = auth.uid()
+      and p.role in ('admin','moderator','analyst')
+  )
+);
+
+create policy if not exists "admin_control_admin_update" on public.admin_control_settings
+for update using (
+  exists (
+    select 1 from public.profiles p
+    where p.user_id = auth.uid()
+      and p.role in ('admin','moderator','analyst')
+  )
+) with check (
+  exists (
+    select 1 from public.profiles p
+    where p.user_id = auth.uid()
+      and p.role in ('admin','moderator','analyst')
+  )
+);
