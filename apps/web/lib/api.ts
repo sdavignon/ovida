@@ -43,6 +43,11 @@ const getMockReplayResponse = (runId: string) => ({
           { id: 'explore', text: 'Explore the abandoned lighthouse' },
           { id: 'shoreline', text: 'Walk along the shoreline' },
         ],
+        audio: {
+          provider: 'mock',
+          urls: ['https://upload.wikimedia.org/wikipedia/commons/0/0f/Beep-sound.ogg'],
+          mime: 'audio/ogg',
+        },
       },
       {
         index: 1,
@@ -52,6 +57,11 @@ const getMockReplayResponse = (runId: string) => ({
           { id: 'climb', text: 'Climb to the top' },
           { id: 'listen', text: 'Listen for the whispers again' },
         ],
+        audio: {
+          provider: 'mock',
+          urls: ['https://upload.wikimedia.org/wikipedia/commons/0/0f/Beep-sound.ogg'],
+          mime: 'audio/ogg',
+        },
       },
       {
         index: 2,
@@ -61,6 +71,11 @@ const getMockReplayResponse = (runId: string) => ({
           { id: 'signal', text: 'Signal to the lights' },
           { id: 'retreat', text: 'Retreat to the shore' },
         ],
+        audio: {
+          provider: 'mock',
+          urls: ['https://upload.wikimedia.org/wikipedia/commons/0/0f/Beep-sound.ogg'],
+          mime: 'audio/ogg',
+        },
       },
     ],
     signature: 'mock-signature',
