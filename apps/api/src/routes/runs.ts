@@ -5,9 +5,10 @@ import { generateDemoBeat } from '../services/llm';
 import { signReplay } from '../services/replay';
 import { synthesizeBeat } from '../services/tts.elevenlabs';
 import { createRun, getRun, saveRun } from '../stores/runs';
+import { requireAuth } from '../middleware/auth';
 
 export async function registerRunRoutes(app: FastifyInstance) {
-  app.post('/v1/runs', async (request, reply) => {
+  app.post('/v1/runs', { preHandler: requireAuth(app) }, async (request, reply) => {
     const BodySchema = z.object({
       story_id: z.string(),
       seed: z.number().int().default(Date.now()),
@@ -19,7 +20,7 @@ export async function registerRunRoutes(app: FastifyInstance) {
     reply.send({ run });
   });
 
-  app.post('/v1/runs/:id/next', async (request, reply) => {
+  app.post('/v1/runs/:id/next', { preHandler: requireAuth(app) }, async (request, reply) => {
     const ParamsSchema = z.object({ id: z.string().uuid() });
     const { id } = ParamsSchema.parse(request.params);
     const QuerySchema = z.object({ index: z.coerce.number().int().optional() });

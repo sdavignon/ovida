@@ -3,9 +3,10 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { SynthesisOpts } from '../audio/engine';
 import { chooseEngine, getEngine } from '../audio/select';
+import { requireAuth } from '../middleware/auth';
 
 export async function registerRoomRoutes(app: FastifyInstance) {
-  app.post('/v1/rooms', async (request, reply) => {
+  app.post('/v1/rooms', { preHandler: requireAuth(app) }, async (request, reply) => {
     const BodySchema = z.object({
       story_id: z.string().optional(),
       run_id: z.string().optional(),
@@ -21,6 +22,7 @@ export async function registerRoomRoutes(app: FastifyInstance) {
         run_id: body.run_id ?? null,
         mode: body.mode,
         vote_window_ms: 12000,
+        host_user_id: request.user?.id ?? null,
       })
       .select()
       .maybeSingle();

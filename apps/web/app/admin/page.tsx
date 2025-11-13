@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import styles from './page.module.css';
+import { AuthGuard } from '@/components/auth-guard';
 
 type MetricCard = {
   id: string;
@@ -279,7 +280,8 @@ export default function AdminPage() {
   }, [safetyMode]);
 
   return (
-    <div className={styles.grid}>
+    <AuthGuard requireAdmin>
+      <div className={styles.grid}>
       <section className={styles.metrics}>
         {dashboardMetrics.map((metric) => (
           <article key={metric.id}>
@@ -515,5 +517,6 @@ export default function AdminPage() {
         </div>
       </section>
     </div>
+    </AuthGuard>
   );
 }
