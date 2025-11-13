@@ -11,10 +11,17 @@ type ReplayChoice = {
   text: string;
 };
 
+type ReplayBeatAudio = {
+  provider: string;
+  urls: string[];
+  mime: string;
+};
+
 type ReplayBeat = {
   index: number;
   narration: string;
   choices: ReplayChoice[];
+  audio?: ReplayBeatAudio;
 };
 
 type ReplayPayload = {
@@ -94,6 +101,12 @@ function ReplayContent() {
               <li key={beat.index} className={styles.beat}>
                 <header>
                   <span className={styles.beatIndex}>Beat {beat.index + 1}</span>
+                  {beat.audio && beat.audio.urls.length > 0 && (
+                    <audio controls className={styles.audioPlayer}>
+                      <source src={beat.audio.urls[0]} type={beat.audio.mime} />
+                      Your browser does not support the audio element.
+                    </audio>
+                  )}
                   <p className={styles.narration}>{beat.narration}</p>
                 </header>
                 <div>

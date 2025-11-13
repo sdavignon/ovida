@@ -92,6 +92,12 @@
   letter-spacing: 0.1em;
 }
 
+.audioPlayer {
+  width: 100%;
+  max-width: 500px;
+  margin: 8px 0;
+}
+
 .narration {
   font-size: 18px;
   line-height: 1.6;
