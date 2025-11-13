@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { chooseEngine, getEngine } from '../audio/select';
 import { generateDemoBeat } from '../services/llm';
 import { signReplay } from '../services/replay';
+import { synthesizeBeat } from '../services/tts.elevenlabs';
 import { createRun, getRun, saveRun } from '../stores/runs';
 
 export async function registerRunRoutes(app: FastifyInstance) {
@@ -68,12 +69,25 @@ export async function registerRunRoutes(app: FastifyInstance) {
   app.get('/v1/runs/:id/replay', async (request, reply) => {
     const ParamsSchema = z.object({ id: z.string() });
     const { id } = ParamsSchema.parse(request.params);
+
+    // Generate beats with audio
+    const beat = await generateDemoBeat(0);
+    const audio = await synthesizeBeat(app.env, beat);
+    const beatWithAudio = {
+      ...beat,
+      audio: {
+        provider: audio.provider,
+        urls: audio.urls,
+        mime: audio.mime,
+      },
+    };
+
     const replay = signReplay({
       version: '1.0',
       story: { id: 'haunted-shore', title: 'Haunted Shore' },
       engine: { llm: 'gpt-5', tts: 'elevenlabs-v2' },
       seed: 42,
-      beats: [await generateDemoBeat(0)],
+      beats: [beatWithAudio],
       signature: '',
     });
     reply.send({ id, replay });
