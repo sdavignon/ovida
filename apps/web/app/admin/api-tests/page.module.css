@@ -1,0 +1,406 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  align-items: flex-start;
+  background: var(--panel);
+  border-radius: 28px;
+  padding: 36px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.45);
+}
+
+.header h1 {
+  margin: 8px 0 12px;
+  font-size: 34px;
+  letter-spacing: -0.02em;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.75);
+}
+
+.intro {
+  margin: 0;
+  max-width: 640px;
+  color: rgba(226, 232, 240, 0.85);
+  line-height: 1.5;
+}
+
+.backLink {
+  align-self: flex-start;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  font-size: 14px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.backLink:hover,
+.backLink:focus-visible {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.6);
+}
+
+.originSection {
+  background: rgba(15, 23, 42, 0.85);
+  border-radius: 24px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.originSection h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.originCopy {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+  max-width: 720px;
+  line-height: 1.5;
+}
+
+.originGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.originField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  background: rgba(30, 41, 59, 0.7);
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.originField span {
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.originField input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 12px 14px;
+  background: rgba(15, 23, 42, 0.6);
+  color: inherit;
+}
+
+.originField input:focus-visible {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.originField small {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.6);
+}
+
+.categorySection {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.categoryHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.categoryHeader h2 {
+  margin: 0 0 8px;
+  font-size: 26px;
+}
+
+.categoryHeader p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+.originSummary {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.testGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 24px;
+}
+
+.testCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: rgba(15, 23, 42, 0.82);
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.35);
+}
+
+.testHeader {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.methodBadge {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.methodBadge[data-method='GET'] {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.15);
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
+.methodBadge[data-method='POST'] {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.methodBadge[data-method='PUT'],
+.methodBadge[data-method='PATCH'] {
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.15);
+  border-color: rgba(250, 204, 21, 0.5);
+}
+
+.methodBadge[data-method='DELETE'] {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.15);
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.pathInput {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.65);
+  color: inherit;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SFMono-Regular', ui-monospace, monospace;
+  font-size: 14px;
+}
+
+.pathInput:focus-visible {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.testCard h3 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.description {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+  line-height: 1.5;
+}
+
+.notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.12);
+  color: rgba(191, 219, 254, 0.9);
+  font-size: 13px;
+  line-height: 1.45;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field span {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.field textarea {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 12px 14px;
+  background: rgba(15, 23, 42, 0.65);
+  color: inherit;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SFMono-Regular', ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.field textarea:focus-visible {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.noBody {
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(100, 116, 139, 0.12);
+  color: rgba(203, 213, 225, 0.85);
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.actions button {
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: none;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.actions button[disabled] {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.actions button:not(.resetButton) {
+  background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%);
+  color: #0f172a;
+}
+
+.actions button:not(.resetButton):hover:not([disabled]) {
+  transform: translateY(-1px);
+}
+
+.resetButton {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.resetButton:hover {
+  border-color: rgba(56, 189, 248, 0.6);
+}
+
+.result {
+  background: rgba(15, 23, 42, 0.65);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result[data-status='success'] {
+  border-color: rgba(74, 222, 128, 0.45);
+}
+
+.result[data-status='error'] {
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.resultStatus {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.error {
+  margin: 0;
+  color: #f87171;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.responseBody {
+  margin: 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.75);
+  border: 1px solid rgba(30, 64, 175, 0.5);
+  font-family: 'JetBrains Mono', 'Fira Code', 'SFMono-Regular', ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 720px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .backLink {
+    align-self: stretch;
+    text-align: center;
+  }
+
+  .categoryHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .originSummary {
+    align-self: flex-start;
+  }
+}

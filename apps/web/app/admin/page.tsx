@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import styles from './page.module.css';
 
@@ -287,6 +288,28 @@ export default function AdminPage() {
             {metric.description && <span>{metric.description}</span>}
           </article>
         ))}
+      </section>
+
+      <section className={`${styles.panel} ${styles.panelFull} ${styles.apiPanel}`}>
+        <header>
+          <h2>API Test Tools</h2>
+          <span>Verify integrations without leaving the console</span>
+        </header>
+        <p className={styles.panelCopy}>
+          Run sample payloads against the internal services and partner-facing APIs, adjust origins, and
+          inspect live responses. Useful for staging checks, incident response, or partner onboarding.
+        </p>
+        <div className={styles.apiActions}>
+          <Link href="/admin/api-tests" className={styles.primaryLink}>
+            Open Test Tools
+          </Link>
+          <span>Opens a library of pre-filled requests for internal and external endpoints.</span>
+        </div>
+        <ul className={styles.apiList}>
+          <li>Exercise demo, run, room, and scene imagery flows.</li>
+          <li>Validate partner video job endpoints with bearer keys.</li>
+          <li>Review response payloads, status codes, and latency at a glance.</li>
+        </ul>
       </section>
 
       <section className={styles.panel}>
