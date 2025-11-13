@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { generateSceneImages, SceneImageError } from '../services/images.openai';
+import { requireAdmin } from '../middleware/auth';
 
 const SceneImageSchema = z.object({
   scene_id: z.string().min(1),
@@ -13,7 +14,7 @@ const SceneImageSchema = z.object({
 });
 
 export async function registerSceneImageRoutes(app: FastifyInstance) {
-  app.post('/v1/scenes/images', async (request, reply) => {
+  app.post('/v1/scenes/images', { preHandler: requireAdmin(app) }, async (request, reply) => {
     if (!app.env.OPENAI_API_KEY) {
       return reply.code(503).send({ message: 'Scene image generation is not configured.' });
     }
