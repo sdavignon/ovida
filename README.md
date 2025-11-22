@@ -37,6 +37,16 @@
     - Launch the web console with `pnpm --filter @ovida/web dev` to explore the demo, player, room, replay, and admin surfaces in the browser.
     - Launch the Expo app with `pnpm --filter @ovida/app dev` and explore the 3-step demo.
 
+4. **Start the forced-alignment service (Gentle)**
+
+   ```bash
+   docker compose up gentle
+   ```
+
+   - Runs the [Gentle](https://github.com/lowerquality/gentle) aligner in its own container on port `8765`
+   - A healthcheck keeps the container marked healthy once the HTTP listener is ready
+   - Access the built-in UI and REST API at http://localhost:8765 for transcript/audio alignment
+
 ## API access
 
 - **Service entrypoint** – The Fastify service in `apps/api` listens on `PORT` (defaults to `4000`) and exposes JSON endpoints under `/v1`. A local bootstrap looks like:
