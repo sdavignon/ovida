@@ -10,3 +10,15 @@ services:
       - 3000:3000
       - 9229:9229
     command: ["node", "--inspect=0.0.0.0:9229", "index.js"]
+
+  gentle:
+    image: lowerquality/gentle:latest
+    container_name: ovida-gentle
+    restart: unless-stopped
+    ports:
+      - 8765:8765
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; socket.create_connection((\"localhost\", 8765), 5).close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
