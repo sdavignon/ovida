@@ -294,23 +294,25 @@ export default function AdminPage() {
 
       <section className={`${styles.panel} ${styles.panelFull} ${styles.apiPanel}`}>
         <header>
-          <h2>API Test Tools</h2>
-          <span>Verify integrations without leaving the console</span>
+          <h2>API Reliability</h2>
+          <span>Live endpoint status plus default test harness</span>
         </header>
         <p className={styles.panelCopy}>
-          Run sample payloads against the internal services and partner-facing APIs, adjust origins, and
-          inspect live responses. Useful for staging checks, incident response, or partner onboarding.
+          Monitor every internal and partner-facing route from the console. Flip between the live status board and
+          the default test harness to validate payloads, latency, and headers in a few clicks.
         </p>
         <div className={styles.apiActions}>
-          <Link href="/admin/api-tests" className={styles.primaryLink}>
-            Open Test Tools
+          <Link href="/admin/api-status" className={styles.primaryLink}>
+            View Endpoint Status
           </Link>
-          <span>Opens a library of pre-filled requests for internal and external endpoints.</span>
+          <Link href="/admin/api-tests" className={styles.secondaryLink}>
+            Open Test Harness
+          </Link>
         </div>
         <ul className={styles.apiList}>
-          <li>Exercise demo, run, room, and scene imagery flows.</li>
-          <li>Validate partner video job endpoints with bearer keys.</li>
-          <li>Review response payloads, status codes, and latency at a glance.</li>
+          <li>See availability, status codes, and probe latency for every endpoint.</li>
+          <li>Run pre-filled demo, run, room, imagery, and video job requests with default settings.</li>
+          <li>Swap origins to verify staging or partner environments without leaving the admin space.</li>
         </ul>
       </section>
 
