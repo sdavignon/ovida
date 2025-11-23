@@ -1,4 +1,5 @@
 import { apiOrigin } from './config';
+import { supabase } from './supabase';
 
 type ApiOptions = RequestInit & { skipJson?: boolean };
 
@@ -9,6 +10,17 @@ export const api = {
   delete: <T = any>(path: string, options?: ApiOptions): Promise<T> => request<T>('DELETE', path, options),
   patch: <T = any>(path: string, options?: ApiOptions): Promise<T> => request<T>('PATCH', path, options),
 };
+
+// Helper to get auth headers
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    return {
+      'sb-access-token': session.access_token,
+    };
+  }
+  return {};
+}
 
 // Mock data fallback for when API is unavailable
 const getMockDemoResponse = () => ({
@@ -110,11 +122,14 @@ async function request<T = any>(
 ): Promise<T> {
   const { skipJson, ...fetchOptions } = options;
   const url = `${apiOrigin}${path}`;
-  
+
+  const authHeaders = await getAuthHeaders();
+
   const response = await fetch(url, {
     method,
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...fetchOptions.headers,
     },
     ...fetchOptions,
