@@ -85,6 +85,25 @@ export class VideoJobManager {
         }
         return this.toSummary(job);
     }
+    async getJobLog(jobId) {
+        const job = this.jobs.get(jobId);
+        const candidatePaths = [
+            path.join(this.outputRoot, `${jobId}.log`),
+            job?.logPath,
+        ].filter((candidate) => Boolean(candidate));
+        for (const candidate of candidatePaths) {
+            try {
+                return await fs.readFile(candidate, 'utf8');
+            }
+            catch (error) {
+                const code = error.code;
+                if (code !== 'ENOENT') {
+                    throw error;
+                }
+            }
+        }
+        return undefined;
+    }
     toSummary(job) {
         return {
             job_id: job.id,

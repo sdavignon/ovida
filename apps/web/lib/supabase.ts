@@ -7,4 +7,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase environment variables not configured');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseClientUrl = supabaseUrl || 'http://localhost:54321';
+const supabaseClientAnonKey = supabaseAnonKey || 'local-anon-key';
+
+export const supabase = createClient(supabaseClientUrl, supabaseClientAnonKey);
