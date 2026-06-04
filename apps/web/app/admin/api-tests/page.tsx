@@ -512,7 +512,7 @@ export default function ApiTestToolsPage() {
       </section>
 
 
-      <section className={styles.ffmpegSection}>
+      <section id="ffmpeg-api-tool" className={styles.ffmpegSection}>
         <div className={styles.ffmpegHeader}>
           <div>
             <p className={styles.eyebrow}>ffmpeg workflow</p>
