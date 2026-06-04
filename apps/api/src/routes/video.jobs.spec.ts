@@ -38,6 +38,7 @@ const createVideoJobsMock = () => ({
     updated_at: '2026-01-01T00:00:00.000Z',
   })),
   getJob: vi.fn(),
+  getJobLog: vi.fn(),
 });
 
 const buildApp = async (videoJobs = createVideoJobsMock()) => {
@@ -180,5 +181,21 @@ describe('video job API routes', () => {
 
     expect(response.statusCode).toBe(302);
     expect(response.headers.location).toBe('https://cdn.example.test/videos/job_done.mp4');
+  });
+
+  it('returns archived ffmpeg logs for authenticated callers', async () => {
+    const videoJobs = createVideoJobsMock();
+    videoJobs.getJobLog.mockResolvedValueOnce('ffmpeg version test\nframe=12 time=00:00:01.00');
+    ({ app } = await buildApp(videoJobs));
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/jobs/job_done/log',
+      headers: { authorization: 'Bearer video-secret' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('text/plain');
+    expect(response.body).toContain('frame=12');
   });
 });

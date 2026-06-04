@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { type ChangeEvent, useMemo, useState } from 'react';
 import {
   API_CATEGORY_DEFINITIONS,
   type ApiCategory,
@@ -65,12 +65,60 @@ const formatResponseBody = (payload: string) => {
 
 const methodLabel = (method: ApiTestDefinition['method']) => method.toUpperCase();
 
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => resolve(String(reader.result ?? '')));
+    reader.addEventListener('error', () => reject(reader.error ?? new Error('Unable to read file')));
+    reader.readAsDataURL(file);
+  });
+
+const formatFileLabel = (file?: File | null) => {
+  if (!file) return 'No file selected';
+  const sizeMb = file.size / 1024 / 1024;
+  return `${file.name} · ${sizeMb.toFixed(sizeMb >= 10 ? 1 : 2)} MB`;
+};
+
+type FfmpegToolStatus = 'idle' | 'loading' | 'success' | 'error';
+
+type FfmpegToolState = {
+  sourceFile?: File | null;
+  sourceDataUrl?: string;
+  logoFile?: File | null;
+  logoDataUrl?: string;
+  audioFile?: File | null;
+  audioDataUrl?: string;
+  videoApiKey: string;
+  jobId: string;
+  status: FfmpegToolStatus;
+  message: string;
+  result: string;
+  log: string;
+  downloadUrl?: string;
+  outputFormat: 'mp4' | 'mov' | 'mkv';
+  overlayText: string;
+  fontFile: string;
+};
+
+const getInitialFfmpegToolState = (): FfmpegToolState => ({
+  videoApiKey: '',
+  jobId: '',
+  status: 'idle',
+  message: 'Upload a source video, optionally add logo/audio assets, then run a render.',
+  result: '',
+  log: '',
+  outputFormat: 'mp4',
+  overlayText: 'OVIDA TEST RENDER',
+  fontFile: '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+});
+
 export default function ApiTestToolsPage() {
   const [origins, setOrigins] = useState<Record<ApiCategory, string>>({
     internal: apiOrigin,
     external: defaultExternalOrigin,
   });
   const [requests, setRequests] = useState<Record<string, RequestState>>(() => createInitialState());
+  const [ffmpegTool, setFfmpegTool] = useState<FfmpegToolState>(() => getInitialFfmpegToolState());
 
   const allTests = useMemo(
     () =>
@@ -202,6 +250,224 @@ export default function ApiTestToolsPage() {
     }
   };
 
+
+  const buildExternalApiUrl = (path: string) => {
+    const origin = origins.external?.trim().replace(/\/+$/, '');
+    if (!origin) {
+      throw new Error('Set the External API Origin before running the ffmpeg tool.');
+    }
+    return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
+  };
+
+  const updateFfmpegFile = async (
+    field: 'source' | 'logo' | 'audio',
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) {
+      setFfmpegTool((prev) => ({
+        ...prev,
+        [`${field}File`]: null,
+        [`${field}DataUrl`]: undefined,
+      }));
+      return;
+    }
+
+    setFfmpegTool((prev) => ({
+      ...prev,
+      status: 'loading',
+      message: `Reading ${file.name}…`,
+    }));
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setFfmpegTool((prev) => ({
+        ...prev,
+        [`${field}File`]: file,
+        [`${field}DataUrl`]: dataUrl,
+        status: 'idle',
+        message: `${file.name} is ready for the ffmpeg API request.`,
+      }));
+    } catch (error) {
+      setFfmpegTool((prev) => ({
+        ...prev,
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Unable to read selected file.',
+      }));
+    }
+  };
+
+  const fetchFfmpegLog = async (jobId: string, apiKey: string) => {
+    const response = await fetch(buildExternalApiUrl(`/api/v1/jobs/${jobId}/log`), {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      return text.trim() ? formatResponseBody(text) : `${response.status} ${response.statusText}`;
+    }
+    return text.trim() || '∅ Log is empty';
+  };
+
+  const checkFfmpegStatus = async (jobId = ffmpegTool.jobId, apiKey = ffmpegTool.videoApiKey) => {
+    const trimmedJobId = jobId.trim();
+    const trimmedApiKey = apiKey.trim();
+    if (!trimmedJobId || !trimmedApiKey) {
+      setFfmpegTool((prev) => ({
+        ...prev,
+        status: 'error',
+        message: 'Provide both a job ID and VIDEO_API_KEY before checking status.',
+      }));
+      return null;
+    }
+
+    setFfmpegTool((prev) => ({ ...prev, status: 'loading', message: `Checking ${trimmedJobId}…` }));
+
+    try {
+      const response = await fetch(buildExternalApiUrl(`/api/v1/jobs/${trimmedJobId}`), {
+        headers: { Authorization: `Bearer ${trimmedApiKey}` },
+      });
+      const text = await response.text();
+      const formatted = formatResponseBody(text);
+      let parsed: { status?: string; download_url?: string | null; error?: string | null } | null = null;
+      try {
+        parsed = text.trim() ? JSON.parse(text) : null;
+      } catch {
+        parsed = null;
+      }
+
+      const log = await fetchFfmpegLog(trimmedJobId, trimmedApiKey);
+      const succeeded = response.ok && parsed?.status !== 'failed';
+      setFfmpegTool((prev) => ({
+        ...prev,
+        jobId: trimmedJobId,
+        status: succeeded ? 'success' : 'error',
+        message: response.ok
+          ? `Job ${trimmedJobId} is ${parsed?.status ?? 'unknown'}.`
+          : `Status request failed: ${response.status} ${response.statusText}`,
+        result: formatted,
+        log,
+        downloadUrl: parsed?.download_url ?? prev.downloadUrl,
+      }));
+      return parsed;
+    } catch (error) {
+      setFfmpegTool((prev) => ({
+        ...prev,
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Unable to check ffmpeg job status.',
+      }));
+      return null;
+    }
+  };
+
+  const pollFfmpegJob = async (jobId: string, apiKey: string) => {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, attempt === 0 ? 1000 : 2000));
+      const status = await checkFfmpegStatus(jobId, apiKey);
+      if (status?.status === 'completed' || status?.status === 'failed') {
+        return;
+      }
+    }
+    setFfmpegTool((prev) => ({
+      ...prev,
+      status: 'success',
+      message: 'Polling timed out after 60 seconds. Use Check status/log to continue watching the job.',
+    }));
+  };
+
+  const runFfmpegTool = async () => {
+    const apiKey = ffmpegTool.videoApiKey.trim();
+    if (!apiKey) {
+      setFfmpegTool((prev) => ({ ...prev, status: 'error', message: 'Enter a VIDEO_API_KEY before running.' }));
+      return;
+    }
+    if (!ffmpegTool.sourceDataUrl) {
+      setFfmpegTool((prev) => ({ ...prev, status: 'error', message: 'Upload a source video before running.' }));
+      return;
+    }
+
+    const payload = {
+      source_url: ffmpegTool.sourceDataUrl,
+      overlays: [
+        {
+          type: 'text',
+          text: ffmpegTool.overlayText,
+          fontfile: ffmpegTool.fontFile,
+          fontsize: 48,
+          fontcolor: 'white',
+          x: '(w-text_w)/2',
+          y: 'h-96',
+          start: 0,
+          end: 4,
+          shadow: true,
+        },
+        ...(ffmpegTool.logoDataUrl
+          ? [
+              {
+                type: 'logo',
+                asset_url: ffmpegTool.logoDataUrl,
+                x: 'main_w-overlay_w-32',
+                y: 'main_h-overlay_h-32',
+                start: 0,
+                end: 6,
+                fade_in: 0.25,
+                fade_out: 0.25,
+                scale: '0.25',
+              },
+            ]
+          : []),
+      ],
+      output_format: ffmpegTool.outputFormat,
+      ...(ffmpegTool.audioDataUrl ? { audio_url: ffmpegTool.audioDataUrl } : {}),
+    };
+
+    setFfmpegTool((prev) => ({
+      ...prev,
+      status: 'loading',
+      message: 'Submitting ffmpeg render job…',
+      result: JSON.stringify(payload, (key, value) => (String(value).startsWith('data:') ? '[uploaded data URL]' : value), 2),
+      log: '',
+      downloadUrl: undefined,
+    }));
+
+    try {
+      const response = await fetch(buildExternalApiUrl('/api/v1/jobs'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const text = await response.text();
+      const formatted = formatResponseBody(text);
+      const parsed = text.trim() ? JSON.parse(text) as { job_id?: string } : null;
+      if (!response.ok || !parsed?.job_id) {
+        setFfmpegTool((prev) => ({
+          ...prev,
+          status: 'error',
+          message: `Create job failed: ${response.status} ${response.statusText}`,
+          result: formatted,
+        }));
+        return;
+      }
+
+      setFfmpegTool((prev) => ({
+        ...prev,
+        status: 'success',
+        message: `Created ${parsed.job_id}. Polling status and ffmpeg log…`,
+        jobId: parsed.job_id!,
+        result: formatted,
+      }));
+      await pollFfmpegJob(parsed.job_id, apiKey);
+    } catch (error) {
+      setFfmpegTool((prev) => ({
+        ...prev,
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Unable to run ffmpeg API test.',
+      }));
+    }
+  };
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -242,6 +508,116 @@ export default function ApiTestToolsPage() {
               </small>
             </label>
           ))}
+        </div>
+      </section>
+
+
+      <section className={styles.ffmpegSection}>
+        <div className={styles.ffmpegHeader}>
+          <div>
+            <p className={styles.eyebrow}>ffmpeg workflow</p>
+            <h2>Upload Assets & Run Video Job</h2>
+            <p>
+              Convert local test assets to data URLs, submit them to the ffmpeg API, poll for results,
+              and fetch the archived render log without leaving the admin test page.
+            </p>
+          </div>
+          {ffmpegTool.downloadUrl ? (
+            <a className={styles.downloadLink} href={ffmpegTool.downloadUrl} target="_blank" rel="noreferrer">
+              Open rendered video ↗
+            </a>
+          ) : null}
+        </div>
+
+        <div className={styles.ffmpegGrid}>
+          <label className={styles.fileField}>
+            <span>Source video</span>
+            <input type="file" accept="video/mp4,video/quicktime,video/x-matroska" onChange={(event) => updateFfmpegFile('source', event)} />
+            <small>{formatFileLabel(ffmpegTool.sourceFile)}</small>
+          </label>
+          <label className={styles.fileField}>
+            <span>Logo overlay</span>
+            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => updateFfmpegFile('logo', event)} />
+            <small>{formatFileLabel(ffmpegTool.logoFile)}</small>
+          </label>
+          <label className={styles.fileField}>
+            <span>Replacement audio</span>
+            <input type="file" accept="audio/mpeg,audio/wav,audio/x-wav" onChange={(event) => updateFfmpegFile('audio', event)} />
+            <small>{formatFileLabel(ffmpegTool.audioFile)}</small>
+          </label>
+        </div>
+
+        <div className={styles.ffmpegControls}>
+          <label className={styles.compactField}>
+            <span>VIDEO_API_KEY</span>
+            <input
+              type="password"
+              value={ffmpegTool.videoApiKey}
+              onChange={(event) => setFfmpegTool((prev) => ({ ...prev, videoApiKey: event.target.value }))}
+              placeholder="Bearer token value"
+            />
+          </label>
+          <label className={styles.compactField}>
+            <span>Job ID</span>
+            <input
+              value={ffmpegTool.jobId}
+              onChange={(event) => setFfmpegTool((prev) => ({ ...prev, jobId: event.target.value }))}
+              placeholder="job_..."
+            />
+          </label>
+          <label className={styles.compactField}>
+            <span>Output</span>
+            <select
+              value={ffmpegTool.outputFormat}
+              onChange={(event) =>
+                setFfmpegTool((prev) => ({ ...prev, outputFormat: event.target.value as FfmpegToolState['outputFormat'] }))
+              }
+            >
+              <option value="mp4">MP4</option>
+              <option value="mov">MOV</option>
+              <option value="mkv">MKV</option>
+            </select>
+          </label>
+          <label className={styles.compactField}>
+            <span>Text overlay</span>
+            <input
+              value={ffmpegTool.overlayText}
+              onChange={(event) => setFfmpegTool((prev) => ({ ...prev, overlayText: event.target.value }))}
+            />
+          </label>
+          <label className={styles.compactField}>
+            <span>Font file on API host</span>
+            <input
+              value={ffmpegTool.fontFile}
+              onChange={(event) => setFfmpegTool((prev) => ({ ...prev, fontFile: event.target.value }))}
+            />
+          </label>
+        </div>
+
+        <div className={styles.actions}>
+          <button type="button" onClick={runFfmpegTool} disabled={ffmpegTool.status === 'loading'}>
+            {ffmpegTool.status === 'loading' ? 'Running…' : 'Upload & Run ffmpeg Job'}
+          </button>
+          <button type="button" className={styles.resetButton} onClick={() => checkFfmpegStatus()} disabled={ffmpegTool.status === 'loading'}>
+            Check status/log
+          </button>
+          <button type="button" className={styles.resetButton} onClick={() => setFfmpegTool(getInitialFfmpegToolState())}>
+            Reset ffmpeg tool
+          </button>
+        </div>
+
+        <div className={styles.result} data-status={ffmpegTool.status}>
+          <p className={styles.resultStatus}>{ffmpegTool.message}</p>
+          <div className={styles.ffmpegResults}>
+            <div>
+              <h3>Job result</h3>
+              <pre className={styles.responseBody}>{ffmpegTool.result || 'Create or check a job to see status JSON.'}</pre>
+            </div>
+            <div>
+              <h3>ffmpeg log</h3>
+              <pre className={styles.responseBody}>{ffmpegTool.log || 'Log output appears after the API archives or exposes it.'}</pre>
+            </div>
+          </div>
         </div>
       </section>
 

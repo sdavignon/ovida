@@ -98,4 +98,12 @@ describe('VideoJobManager ffmpeg environment checks', () => {
       'Required executable "ffmpeg" is not available. Install it on the host and ensure it is in PATH. (ENOENT)',
     );
   });
+
+  it('reads archived ffmpeg logs from the output directory', async () => {
+    const manager = new VideoJobManager({ env: createEnv(tmpRoot, outputRoot), logger: createLogger() as any });
+    await fs.mkdir(outputRoot, { recursive: true });
+    await fs.writeFile(path.join(outputRoot, 'job_abc.log'), 'ffmpeg diagnostic output', 'utf8');
+
+    await expect(manager.getJobLog('job_abc')).resolves.toBe('ffmpeg diagnostic output');
+  });
 });

@@ -174,6 +174,27 @@ export class VideoJobManager {
     return this.toSummary(job);
   }
 
+  async getJobLog(jobId: string): Promise<string | undefined> {
+    const job = this.jobs.get(jobId);
+    const candidatePaths = [
+      path.join(this.outputRoot, `${jobId}.log`),
+      job?.logPath,
+    ].filter((candidate): candidate is string => Boolean(candidate));
+
+    for (const candidate of candidatePaths) {
+      try {
+        return await fs.readFile(candidate, 'utf8');
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }
+
+    return undefined;
+  }
+
   private toSummary(job: VideoJobInternal): VideoJobSummary {
     return {
       job_id: job.id,
