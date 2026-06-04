@@ -404,3 +404,126 @@
     align-self: flex-start;
   }
 }
+
+.ffmpegSection {
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.82));
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 24px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  box-shadow: 0 18px 48px rgba(8, 47, 73, 0.28);
+}
+
+.ffmpegHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.ffmpegHeader h2,
+.ffmpegResults h3 {
+  margin: 0;
+}
+
+.ffmpegHeader p {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: rgba(203, 213, 225, 0.86);
+  line-height: 1.5;
+}
+
+.downloadLink {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(74, 222, 128, 0.16);
+  border: 1px solid rgba(74, 222, 128, 0.45);
+  color: #bbf7d0;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ffmpegGrid,
+.ffmpegControls,
+.ffmpegResults {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.fileField,
+.compactField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.56);
+}
+
+.fileField span,
+.compactField span {
+  color: rgba(148, 163, 184, 0.86);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.fileField small {
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.fileField input,
+.compactField input,
+.compactField select {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  padding: 10px 12px;
+  background: rgba(2, 6, 23, 0.45);
+  color: inherit;
+}
+
+.fileField input:focus-visible,
+.compactField input:focus-visible,
+.compactField select:focus-visible {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18);
+}
+
+.ffmpegResults {
+  align-items: stretch;
+}
+
+.ffmpegResults > div {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ffmpegResults h3 {
+  font-size: 15px;
+  color: rgba(226, 232, 240, 0.9);
+}
+
+@media (max-width: 720px) {
+  .ffmpegHeader {
+    flex-direction: column;
+  }
+
+  .downloadLink {
+    align-self: stretch;
+    text-align: center;
+  }
+}
