@@ -65,6 +65,7 @@ const JobParamsSchema = z.object({
     job_id: z.string().min(1),
 });
 export async function registerVideoJobRoutes(app) {
+    const createJobBodyLimit = Math.ceil((app.env.VIDEO_MAX_INPUT_BYTES + app.env.VIDEO_MAX_OVERLAY_BYTES * 10 + app.env.VIDEO_MAX_AUDIO_BYTES) * 1.4);
     const requireApiKey = async (request, reply) => {
         const header = request.headers.authorization;
         if (!header?.startsWith('Bearer ')) {
@@ -76,7 +77,7 @@ export async function registerVideoJobRoutes(app) {
         }
         return undefined;
     };
-    app.post('/api/v1/jobs', { preHandler: requireApiKey }, async (request, reply) => {
+    app.post('/api/v1/jobs', { preHandler: requireApiKey, bodyLimit: createJobBodyLimit }, async (request, reply) => {
         const body = CreateJobBodySchema.parse(request.body);
         const manager = app.videoJobs;
         const payload = mapCreatePayload(body);
@@ -115,6 +116,14 @@ export async function registerVideoJobRoutes(app) {
             return reply.code(404).send({ message: 'Job output not available' });
         }
         return reply.redirect(job.download_url);
+    });
+    app.get('/api/v1/jobs/:job_id/log', { preHandler: requireApiKey }, async (request, reply) => {
+        const { job_id } = JobParamsSchema.parse(request.params);
+        const log = await app.videoJobs.getJobLog(job_id);
+        if (log === undefined) {
+            return reply.code(404).send({ message: 'Job log not found' });
+        }
+        return reply.type('text/plain; charset=utf-8').send(log);
     });
 }
 const mapCreatePayload = (body) => {

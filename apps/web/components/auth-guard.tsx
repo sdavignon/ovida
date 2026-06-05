@@ -10,7 +10,7 @@ interface AuthGuardProps {
 }
 
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requireAdmin = false }) => {
-  const { user, profile, loading, isAdmin, signInWithGoogle } = useAuth();
+  const { user, profile, loading, isAdmin, signInWithGoogle, authError } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -53,6 +53,9 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requireAdmin = f
         gap: '20px'
       }}>
         <div>Authentication required</div>
+        {authError ? (
+          <div style={{ color: '#f87171', maxWidth: '360px', textAlign: 'center' }}>{authError}</div>
+        ) : null}
         <button
           onClick={signInWithGoogle}
           style={{
