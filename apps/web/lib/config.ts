@@ -1,32 +1,16 @@
-const inferBrowserApiOrigin = () => {
+const resolveApiOrigin = () => {
+  const configured = process.env.NEXT_PUBLIC_API_ORIGIN;
+  if (configured) {
+    return configured;
+  }
+
   if (typeof window === 'undefined') {
     return 'http://localhost:4000';
   }
 
-  const url = new URL(window.location.origin);
-  url.port = '4000';
-  return url.toString().replace(/\/$/, '');
-};
-
-const resolveApiOrigin = () => {
-  const configured = process.env.NEXT_PUBLIC_API_ORIGIN;
-  if (typeof window === 'undefined') {
-    return configured ?? 'http://localhost:4000';
-  }
-
-  if (!configured) {
-    return inferBrowserApiOrigin();
-  }
-
-  try {
-    if (new URL(configured).origin === window.location.origin) {
-      return inferBrowserApiOrigin();
-    }
-  } catch {
-    return inferBrowserApiOrigin();
-  }
-
-  return configured;
+  // The deployed web app is a static export. Apache routes same-origin API
+  // requests through public/api/index.php, avoiding /api/* static 404s.
+  return window.location.origin;
 };
 
 export const apiOrigin = resolveApiOrigin();
