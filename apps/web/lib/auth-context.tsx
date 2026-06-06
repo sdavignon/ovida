@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { apiOrigin } from './config';
 
 interface Profile {
   user_id: string;
@@ -85,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      const response = await fetch(`${apiOrigin}/v1/auth/session`, {
+      const response = await fetch('/auth/session', {
         headers: {
           'sb-access-token': accessToken,
         },
