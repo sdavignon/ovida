@@ -1,5 +1,14 @@
-const defaultApiOrigin = process.env.NEXT_PUBLIC_API_ORIGIN
-  ?? (typeof window === 'undefined' ? 'http://localhost:4000' : window.location.origin);
+const inferBrowserApiOrigin = () => {
+  if (typeof window === 'undefined') {
+    return 'http://localhost:4000';
+  }
+
+  const url = new URL(window.location.origin);
+  url.port = '4000';
+  return url.toString().replace(/\/$/, '');
+};
+
+const defaultApiOrigin = process.env.NEXT_PUBLIC_API_ORIGIN ?? inferBrowserApiOrigin();
 export const apiOrigin = defaultApiOrigin;
 
 const defaultWsOrigin = process.env.NEXT_PUBLIC_WS_ORIGIN
