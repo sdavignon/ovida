@@ -24,6 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <Link href={{ pathname: '/replay', query: { runId: 'demo' } }}>Replay</Link>
                 <Link href={{ pathname: '/room', query: { runId: 'demo' } }}>Room</Link>
                 <Link href="/admin">Admin</Link>
+                <Link href="/admin/api-tests">API Tests</Link>
               </nav>
             </aside>
             <main className={styles.main}>{children}</main>
