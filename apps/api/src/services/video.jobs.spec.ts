@@ -99,11 +99,21 @@ describe('VideoJobManager ffmpeg environment checks', () => {
     );
   });
 
-  it('reads archived ffmpeg logs from the output directory', async () => {
+  it('reads archived ffmpeg logs for known jobs from the output directory', async () => {
     const manager = new VideoJobManager({ env: createEnv(tmpRoot, outputRoot), logger: createLogger() as any });
+    const jobId = 'job_abc';
+    (manager as any).jobs.set(jobId, { id: jobId });
     await fs.mkdir(outputRoot, { recursive: true });
-    await fs.writeFile(path.join(outputRoot, 'job_abc.log'), 'ffmpeg diagnostic output', 'utf8');
+    await fs.writeFile(path.join(outputRoot, `${jobId}.log`), 'ffmpeg diagnostic output', 'utf8');
 
-    await expect(manager.getJobLog('job_abc')).resolves.toBe('ffmpeg diagnostic output');
+    await expect(manager.getJobLog(jobId)).resolves.toBe('ffmpeg diagnostic output');
+  });
+
+  it('does not read arbitrary log paths for unknown job ids', async () => {
+    const manager = new VideoJobManager({ env: createEnv(tmpRoot, outputRoot), logger: createLogger() as any });
+    await fs.mkdir(path.dirname(outputRoot), { recursive: true });
+    await fs.writeFile(path.join(path.dirname(outputRoot), 'other-service.log'), 'sensitive log output', 'utf8');
+
+    await expect(manager.getJobLog('../other-service')).resolves.toBeUndefined();
   });
 });

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 
@@ -70,6 +71,16 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requireAdmin = f
         >
           Sign in with Google
         </button>
+        <Link
+          href="/admin/api-tests"
+          style={{
+            color: '#93c5fd',
+            fontSize: '14px',
+            textDecoration: 'underline'
+          }}
+        >
+          Open API Test Tools
+        </Link>
       </div>
     );
   }
