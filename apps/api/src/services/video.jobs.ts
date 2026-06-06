@@ -176,9 +176,13 @@ export class VideoJobManager {
 
   async getJobLog(jobId: string): Promise<string | undefined> {
     const job = this.jobs.get(jobId);
+    if (!job) {
+      return undefined;
+    }
+
     const candidatePaths = [
-      path.join(this.outputRoot, `${jobId}.log`),
-      job?.logPath,
+      job.logPath,
+      path.join(this.outputRoot, `${job.id}.log`),
     ].filter((candidate): candidate is string => Boolean(candidate));
 
     for (const candidate of candidatePaths) {
