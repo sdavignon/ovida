@@ -4,6 +4,7 @@ const isStaticExport = process.env.NEXT_SHOULD_EXPORT === 'true';
 const nextConfig = {
   reactStrictMode: true,
   output: isStaticExport ? 'export' : 'standalone',
+  trailingSlash: isStaticExport,
   images: {
     unoptimized: isStaticExport,
   },

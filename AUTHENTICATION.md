@@ -88,6 +88,7 @@ GOOGLE_CLIENT_SECRET=your_client_secret_here
    - Go to Authentication > Providers
    - Enable Google
    - Add your Client ID and Secret
+   - Add your app callback URLs under Authentication > URL Configuration, including `http://localhost:3000/admin` and `https://your-domain.example/admin`
 
 ### 3. Run Database Migrations
 
@@ -102,6 +103,7 @@ Migrations include:
 - `0001_init.sql` - Initial schema with profiles table
 - `0002_profiles_roles.sql` - Add role column and constraints
 - `0003_admin_user_setup.sql` - Auto-assign admin role to designated users
+- `0004_auth_profile_provisioning.sql` - Create profile rows from Supabase Auth users after OAuth sign-in
 
 ### 4. Set Admin User
 
