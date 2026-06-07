@@ -19,6 +19,7 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  authError: string | null;
   isAdmin: boolean;
   isAuthenticated: boolean;
 }
@@ -30,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     // Check active sessions and sets the user
@@ -62,14 +64,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (accessToken: string) => {
     try {
-      const response = await fetch('/api/auth/session', {
+      setAuthError(null);
+      const { data: { user } } = await supabase.auth.getUser(accessToken);
+
+      if (user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          console.warn('Error fetching profile from Supabase:', profileError);
+        }
+
+        if (profile) {
+          setProfile(profile as Profile);
+          return;
+        }
+      }
+
+      const response = await fetch('/auth/session', {
         headers: {
           'sb-access-token': accessToken,
         },
       });
+      if (!response.ok) {
+        throw new Error(`Session lookup failed (${response.status})`);
+      }
       const data = await response.json();
       setProfile(data.profile);
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error fetching profile';
+      setAuthError(message);
       console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
@@ -77,13 +104,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithGoogle = async () => {
+    setAuthError(null);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/admin`,
       },
     });
     if (error) {
+      const message = error.message || 'Error signing in with Google';
+      setAuthError(message);
       console.error('Error signing in with Google:', error);
       throw error;
     }
@@ -110,6 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         signInWithGoogle,
         signOut,
+        authError,
         isAdmin,
         isAuthenticated,
       }}
