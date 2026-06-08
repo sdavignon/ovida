@@ -94,6 +94,32 @@ jobs:
             echo "⚠️ Set API_ENV or SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, and VIDEO_API_KEY to start the Node API."
           fi
 
+      - name: Write PHP fallback env
+        env:
+          API_ENV: ${{ secrets.API_ENV }}
+          VIDEO_API_KEY: ${{ vars.VIDEO_API_KEY != '' && vars.VIDEO_API_KEY || secrets.VIDEO_API_KEY }}
+          APP_ORIGIN: ${{ vars.APP_ORIGIN != '' && vars.APP_ORIGIN || 'https://ovida.1976.cloud' }}
+          API_ORIGIN: ${{ vars.API_ORIGIN != '' && vars.API_ORIGIN || 'https://ovida.1976.cloud' }}
+        run: |
+          set -euo pipefail
+
+          fallback_video_api_key="${VIDEO_API_KEY}"
+          if [ -z "${fallback_video_api_key}" ] && [ -n "${API_ENV}" ]; then
+            fallback_video_api_key="$(printf '%s\n' "${API_ENV}" | awk -F= '/^VIDEO_API_KEY=/{print substr($0, index($0, "=") + 1); exit}' | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
+          fi
+
+          if [ -n "${fallback_video_api_key}" ]; then
+            {
+              printf 'VIDEO_API_KEY=%s\n' "${fallback_video_api_key}"
+              printf 'APP_ORIGIN=%s\n' "${APP_ORIGIN}"
+              printf 'API_ORIGIN=%s\n' "${API_ORIGIN}"
+            } > "${BUILD_OUTPUT_DIR}/.api.env"
+            chmod 600 "${BUILD_OUTPUT_DIR}/.api.env"
+            echo "✅ Wrote PHP ffmpeg fallback env into static output."
+          else
+            echo "⚠️ VIDEO_API_KEY was not available; PHP ffmpeg fallback will return a configuration error until .api.env is added on the VPS."
+          fi
+
       - name: Verify build output
         run: |
           echo "Checking build output..."

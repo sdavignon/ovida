@@ -7,6 +7,11 @@
 
 RewriteEngine On
 
+# Never serve runtime secrets uploaded for the PHP ffmpeg fallback.
+<FilesMatch "^\.api\.env$">
+  Require all denied
+</FilesMatch>
+
 # Preserve bearer tokens for PHP/FastCGI before proxying to Fastify.
 SetEnvIfNoCase Authorization "(.+)" HTTP_AUTHORIZATION=$1
 

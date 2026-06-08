@@ -63,7 +63,7 @@ Add one of the following before running the deployment:
 2. **Separate secrets fallback:** if `API_ENV` is not set, the workflow will synthesize `.env` from `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `VIDEO_API_KEY` repository secrets/variables, plus optional `APP_ORIGIN` and `API_ORIGIN` variables.
 3. **Manual VPS fallback:** create the file once on the server at the API deploy path, which defaults to a sibling of the web root named `ovida-api/apps/api/.env`.
 
-If none of these API env sources exists, deployment no longer fails at this step; it skips the Fastify startup and leaves the static PHP ffmpeg fallback available for `/api/v1/jobs`.
+If none of these API env sources exists, deployment no longer fails at this step; it skips the Fastify startup and leaves the static PHP ffmpeg fallback available for `/api/v1/jobs`. The fallback only needs `VIDEO_API_KEY`, so the workflow also writes a protected `.api.env` into the static output when `VIDEO_API_KEY` is available directly or inside `API_ENV`.
 
 Optional repository variable/secret:
 
