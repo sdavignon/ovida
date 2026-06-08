@@ -45,7 +45,7 @@ This repository uses GitHub Actions to automatically deploy the Ovida static web
 
 ### Step 3: Configure API Service Startup
 
-The web deploy is a static Apache export, but `/api/*` is proxied to the Fastify API on the same VPS at `127.0.0.1:4000`. The primary GitHub Actions workflow now builds, uploads, installs, starts, and smoke-tests that API service during deploy.
+The web deploy is a static Apache export. General `/api/*` requests proxy to the Fastify API on the same VPS at `127.0.0.1:4000`, while `/api/v1/jobs` ffmpeg test-tool requests are handled by the bundled PHP ffmpeg fallback so video processing does not fail with a gateway 502 when the Node process is unavailable. The primary GitHub Actions workflow still builds, uploads, installs, starts, and smoke-tests the Fastify API during deploy.
 
 Add one of the following before running the deployment:
 

@@ -56,13 +56,15 @@ function video_fallback_env(): array
 
     foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
         $line = trim($line);
-        if ($line === '' || $line[0] === '#' || !str_contains($line, '=')) {
+        if ($line === '' || $line[0] === '#' || strpos($line, '=') === false) {
             continue;
         }
         [$key, $value] = explode('=', $line, 2);
         $key = trim($key);
         $value = trim($value);
-        if ((str_starts_with($value, '"') && str_ends_with($value, '"')) || (str_starts_with($value, "'") && str_ends_with($value, "'"))) {
+        $first = substr($value, 0, 1);
+        $last = substr($value, -1);
+        if (($first === '"' && $last === '"') || ($first === "'" && $last === "'")) {
             $value = substr($value, 1, -1);
         }
         $env[$key] = $value;
@@ -295,7 +297,7 @@ function video_fallback_create_job(string $body): void
     ];
     video_fallback_write_job($job);
 
-    $php = PHP_BINARY ?: 'php';
+    $php = defined('PHP_BINDIR') && is_executable(PHP_BINDIR . '/php') ? PHP_BINDIR . '/php' : 'php';
     $command = escapeshellcmd($php) . ' ' . escapeshellarg(__DIR__ . '/ffmpeg-worker.php') . ' ' . escapeshellarg($jobId) . ' > /dev/null 2>&1 &';
     exec($command);
 
@@ -452,7 +454,9 @@ function video_fallback_run_worker(string $jobId): int
     $audioInputIndex = null;
     $mapVideo = video_fallback_ffmpeg_filter($job, $args);
     if (!empty($job['audio_path'])) {
-        $audioInputIndex = count(array_filter($args, static fn($arg) => $arg === '-i'));
+        $audioInputIndex = count(array_filter($args, static function ($arg) {
+            return $arg === '-i';
+        }));
         $args[] = '-i';
         $args[] = (string) $job['audio_path'];
     }

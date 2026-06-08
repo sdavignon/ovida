@@ -101,9 +101,19 @@ function gateway_api_origin(): string
 }
 
 $path = gateway_path();
-$target = gateway_api_origin() . '/' . $path . gateway_query_string();
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $body = file_get_contents('php://input');
+
+// Video job calls are what the admin ffmpeg tool exercises. Handle those
+// directly in PHP so production does not depend on a separate localhost Node
+// process being up before ffmpeg processing can start. Non-video API calls still
+// proxy to Fastify below.
+require_once __DIR__ . '/video-fallback.php';
+if (video_fallback_handle($path, $method, $body === false ? '' : $body)) {
+    exit;
+}
+
+$target = gateway_api_origin() . '/' . $path . gateway_query_string();
 
 $context = stream_context_create([
     'http' => [
@@ -118,11 +128,6 @@ $context = stream_context_create([
 $response = @file_get_contents($target, false, $context);
 
 if ($response === false && empty($http_response_header)) {
-    require_once __DIR__ . '/video-fallback.php';
-    if (video_fallback_handle($path, $method, $body === false ? '' : $body)) {
-        exit;
-    }
-
     http_response_code(502);
     header('Content-Type: text/plain; charset=utf-8');
     echo 'Ovida API gateway could not reach ' . gateway_api_origin() . '.';
