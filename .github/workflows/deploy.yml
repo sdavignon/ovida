@@ -14,6 +14,8 @@ jobs:
       NODE_VERSION: '20'
       WEB_DIR: apps/web
       BUILD_OUTPUT_DIR: apps/web/out
+      API_BUNDLE_PATH: api-deploy/ovida-api-runtime.tar.gz
+      API_REMOTE_PATH: ${{ vars.API_REMOTE_PATH != '' && vars.API_REMOTE_PATH || secrets.API_REMOTE_PATH }}
       REMOTE_PATH: ${{ vars.REMOTE_PATH != '' && vars.REMOTE_PATH || secrets.REMOTE_PATH }}
       NEXT_TELEMETRY_DISABLED: 1
 
@@ -42,6 +44,34 @@ jobs:
         run: pnpm --filter @ovida/web build
         env:
           NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL != '' && vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' && vars.NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_API_ORIGIN: ${{ vars.NEXT_PUBLIC_API_ORIGIN }}
+
+      - name: Build API service
+        run: |
+          pnpm --filter @ovida/schemas build
+          pnpm --filter @ovida/api build
+
+      - name: Package API service
+        env:
+          API_ENV: ${{ secrets.API_ENV }}
+        run: |
+          set -euo pipefail
+          mkdir -p api-deploy
+          tar -czf "${API_BUNDLE_PATH}" \
+            package.json \
+            pnpm-lock.yaml \
+            pnpm-workspace.yaml \
+            apps/api/package.json \
+            apps/api/dist \
+            packages/schemas/package.json \
+            packages/schemas/dist
+
+          if [ -n "${API_ENV}" ]; then
+            printf '%s\n' "${API_ENV}" > api-deploy/.api.env
+            chmod 600 api-deploy/.api.env
+          fi
 
       - name: Verify build output
         run: |
@@ -64,6 +94,21 @@ jobs:
             exit 1
           fi
 
+          if [ ! -f "${API_BUNDLE_PATH}" ]; then
+            echo "❌ Error: API bundle not found at ${API_BUNDLE_PATH}!"
+            exit 1
+          fi
+
+          if [ ! -f "${BUILD_OUTPUT_DIR}/api/index.php" ]; then
+            echo "❌ Error: API gateway was not exported into ${BUILD_OUTPUT_DIR}/api/index.php!"
+            exit 1
+          fi
+
+          if [ ! -f "${BUILD_OUTPUT_DIR}/.htaccess" ]; then
+            echo "❌ Error: Apache rewrite file was not exported into ${BUILD_OUTPUT_DIR}/.htaccess!"
+            exit 1
+          fi
+
       - name: Validate deployment configuration
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -71,6 +116,9 @@ jobs:
           SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
           SSH_KEY: ${{ secrets.SSH_KEY }}
           REMOTE_PATH: ${{ env.REMOTE_PATH }}
+          API_BUNDLE_PATH: ${{ env.API_BUNDLE_PATH }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL != '' && vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' && vars.NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
           missing=()
@@ -85,6 +133,14 @@ jobs:
 
           if [ -z "${REMOTE_PATH}" ]; then
             missing+=("REMOTE_PATH (repo variable or secret)")
+          fi
+
+          if [ -z "${NEXT_PUBLIC_SUPABASE_URL}" ]; then
+            missing+=("NEXT_PUBLIC_SUPABASE_URL (repo variable or secret)")
+          fi
+
+          if [ -z "${NEXT_PUBLIC_SUPABASE_ANON_KEY}" ]; then
+            missing+=("NEXT_PUBLIC_SUPABASE_ANON_KEY (repo variable or secret)")
           fi
 
           if [ -z "${SSH_PASSWORD}" ] && [ -z "${SSH_KEY}" ]; then
@@ -118,6 +174,7 @@ jobs:
           SSH_KEY: ${{ secrets.SSH_KEY }}
           LOCAL_BUILD_DIR: ${{ env.BUILD_OUTPUT_DIR }}
           REMOTE_PATH: ${{ env.REMOTE_PATH }}
+          API_BUNDLE_PATH: ${{ env.API_BUNDLE_PATH }}
         run: |
           set -euo pipefail
 
@@ -160,6 +217,149 @@ jobs:
             echo "❌ No SSH credentials provided. Set SSH_PASSWORD or SSH_KEY."
             exit 1
           fi
+
+      - name: Upload API bundle via SCP
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          API_BUNDLE_PATH: ${{ env.API_BUNDLE_PATH }}
+          REMOTE_PATH: ${{ env.REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+
+          REMOTE_DIR="${REMOTE_PATH%/}"
+          if [ -z "${REMOTE_DIR}" ]; then
+            REMOTE_DIR="/"
+          fi
+
+          DEST="${SSH_USER}@${SSH_HOST}:${REMOTE_DIR}/"
+          echo "📦 Uploading API bundle to ${DEST}"
+
+          if [ -n "${SSH_PASSWORD}" ]; then
+            if ! command -v sshpass >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y sshpass
+            fi
+
+            sshpass -p "${SSH_PASSWORD}" \
+              scp -P "${SSH_PORT}" -o StrictHostKeyChecking=no "${API_BUNDLE_PATH}" "${DEST}"
+            if [ -f api-deploy/.api.env ]; then
+              sshpass -p "${SSH_PASSWORD}" \
+                scp -P "${SSH_PORT}" -o StrictHostKeyChecking=no api-deploy/.api.env "${DEST}"
+            fi
+          elif [ -n "${SSH_KEY}" ]; then
+            mkdir -p ~/.ssh
+            KEY_FILE=~/.ssh/id_deploy_api
+            printf '%s\n' "${SSH_KEY}" > "${KEY_FILE}"
+            chmod 600 "${KEY_FILE}"
+
+            scp -i "${KEY_FILE}" -P "${SSH_PORT}" -o StrictHostKeyChecking=no "${API_BUNDLE_PATH}" "${DEST}"
+            if [ -f api-deploy/.api.env ]; then
+              scp -i "${KEY_FILE}" -P "${SSH_PORT}" -o StrictHostKeyChecking=no api-deploy/.api.env "${DEST}"
+            fi
+            rm -f "${KEY_FILE}"
+          else
+            echo "❌ No SSH credentials provided. Set SSH_PASSWORD or SSH_KEY."
+            exit 1
+          fi
+
+      - name: Deploy and start API service
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          REMOTE_PATH: ${{ env.REMOTE_PATH }}
+          API_REMOTE_PATH: ${{ env.API_REMOTE_PATH }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          envs: REMOTE_PATH,API_REMOTE_PATH
+          script: |
+            set -euo pipefail
+
+            REMOTE_DIR="${REMOTE_PATH%/}"
+            if [ -z "${REMOTE_DIR}" ]; then
+              REMOTE_DIR="/"
+            fi
+
+            API_DIR="${API_REMOTE_PATH:-$(dirname "${REMOTE_DIR}")/ovida-api}"
+            API_ARCHIVE="${REMOTE_DIR}/ovida-api-runtime.tar.gz"
+            API_ENV_UPLOAD="${REMOTE_DIR}/.api.env"
+            API_NAME="ovida-api"
+
+            if [ ! -f "${API_ARCHIVE}" ]; then
+              echo "❌ API archive ${API_ARCHIVE} was not uploaded."
+              exit 1
+            fi
+
+            mkdir -p "${API_DIR}"
+            tar -xzf "${API_ARCHIVE}" -C "${API_DIR}"
+            rm -f "${API_ARCHIVE}"
+
+            if [ -f "${API_ENV_UPLOAD}" ]; then
+              mkdir -p "${API_DIR}/apps/api"
+              mv "${API_ENV_UPLOAD}" "${API_DIR}/apps/api/.env"
+              chmod 600 "${API_DIR}/apps/api/.env"
+            elif [ ! -f "${API_DIR}/apps/api/.env" ]; then
+              echo "❌ Missing API environment file."
+              echo "Create ${API_DIR}/apps/api/.env on the VPS or set the GitHub secret API_ENV."
+              echo "Required values include SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, VIDEO_API_KEY, APP_ORIGIN, and API_ORIGIN."
+              exit 1
+            fi
+
+            cd "${API_DIR}"
+            if command -v corepack >/dev/null 2>&1; then
+              corepack enable
+              corepack prepare pnpm@8.15.6 --activate
+            fi
+            if ! command -v pnpm >/dev/null 2>&1; then
+              npm install -g pnpm@8.15.6
+            fi
+
+            pnpm install --prod --frozen-lockfile --filter @ovida/api...
+
+            cd "${API_DIR}/apps/api"
+            mkdir -p "${API_DIR}/logs" "${API_DIR}/pids"
+
+            if command -v pm2 >/dev/null 2>&1; then
+              if pm2 describe "${API_NAME}" >/dev/null 2>&1; then
+                pm2 restart "${API_NAME}" --update-env
+              else
+                pm2 start dist/index.js --name "${API_NAME}" --update-env
+              fi
+              pm2 save || true
+            else
+              if [ -f "${API_DIR}/pids/api.pid" ]; then
+                old_pid="$(cat "${API_DIR}/pids/api.pid")"
+                if [ -n "${old_pid}" ]; then
+                  kill "${old_pid}" 2>/dev/null || true
+                fi
+              fi
+              nohup node dist/index.js > "${API_DIR}/logs/api.log" 2>&1 &
+              echo $! > "${API_DIR}/pids/api.pid"
+            fi
+
+            for attempt in 1 2 3 4 5 6 7 8 9 10; do
+              status="$(curl -s -o /tmp/ovida-api-health.txt -w '%{http_code}' http://127.0.0.1:4000/api/v1/jobs/deploy-smoke || true)"
+              if [ "${status}" = "401" ] || [ "${status}" = "404" ]; then
+                echo "✅ API service is reachable on http://127.0.0.1:4000 (HTTP ${status})."
+                exit 0
+              fi
+              echo "Waiting for API service on 127.0.0.1:4000 (attempt ${attempt}, HTTP ${status})..."
+              sleep 2
+            done
+
+            echo "❌ API service did not become reachable on http://127.0.0.1:4000."
+            if command -v pm2 >/dev/null 2>&1; then
+              pm2 logs "${API_NAME}" --lines 80 --nostream || true
+            else
+              tail -n 80 "${API_DIR}/logs/api.log" || true
+            fi
+            exit 1
 
       - name: Verify remote upload
         uses: appleboy/ssh-action@v1.0.3

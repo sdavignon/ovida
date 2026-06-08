@@ -1,7 +1,7 @@
 # Deployment Guide
 
 ## Overview
-This repository uses GitHub Actions to automatically deploy the Ovida web application to DreamHost VPS when changes are pushed to the `main` branch.
+This repository uses GitHub Actions to automatically deploy the Ovida static web application and Fastify API service to DreamHost VPS when changes are pushed to the `main` branch.
 
 ## Deployment Status: ✅ Fixed & Ready for Configuration
 
@@ -29,6 +29,8 @@ This repository uses GitHub Actions to automatically deploy the Ovida web applic
 | `SSH_USER` | `dh_rt2c39` |
 | `SSH_PASSWORD` | `$t3FjqpSzKM&%H@ZrZ7fpRaj_` |
 | `SSH_PORT` | `22` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL used by the static web build. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon/public key used by browser auth. |
 
 ### Step 2: Add Repository Variables
 
@@ -41,7 +43,34 @@ This repository uses GitHub Actions to automatically deploy the Ovida web applic
 
 > **Note**: You may need to verify the correct path by SSH-ing into your server first.
 
-### Step 3: Verify Remote Path
+### Step 3: Configure API Service Startup
+
+The web deploy is a static Apache export, but `/api/*` is proxied to the Fastify API on the same VPS at `127.0.0.1:4000`. The primary GitHub Actions workflow now builds, uploads, installs, starts, and smoke-tests that API service during deploy.
+
+Add one of the following before running the deployment:
+
+1. **Recommended:** add a repository secret named `API_ENV` containing the production `apps/api/.env` content. At minimum it must include:
+   ```bash
+   NODE_ENV=production
+   PORT=4000
+   APP_ORIGIN=https://ovida.1976.cloud
+   API_ORIGIN=https://ovida.1976.cloud
+   SUPABASE_URL=...
+   SUPABASE_ANON_KEY=...
+   SUPABASE_SERVICE_ROLE_KEY=...
+   VIDEO_API_KEY=...
+   ```
+2. **Manual VPS fallback:** create the file once on the server at the API deploy path, which defaults to a sibling of the web root named `ovida-api/apps/api/.env`.
+
+Optional repository variable/secret:
+
+| Name | Value |
+|------|-------|
+| `API_REMOTE_PATH` | Absolute VPS path for the API runtime bundle. Defaults to a sibling directory named `ovida-api` next to `REMOTE_PATH`. |
+
+The workflow injects the `NEXT_PUBLIC_SUPABASE_*` values into the static web build so the browser login bundle does not emit `Supabase environment variables not configured`. It uses PM2 when it is installed; otherwise it starts `node dist/index.js` with `nohup` and writes a PID file. It then checks `http://127.0.0.1:4000/api/v1/jobs/deploy-smoke`, which should return `401` without an API key when the Fastify service is reachable.
+
+### Step 4: Verify Remote Path
 
 SSH into your server to confirm the deployment directory:
 
@@ -69,7 +98,7 @@ Update the `REMOTE_PATH` variable if needed.
 ### Primary: SFTP Deployment
 - **Workflow**: `.github/workflows/deploy.yml`
 - **Trigger**: Automatic on push to `main` branch
-- **Method**: SFTP upload using password authentication
+- **Method**: SCP static web upload plus API runtime bundle upload/start using password or key authentication
 
 ### Alternative: SSH/SCP Deployment
 - **Workflow**: `.github/workflows/deploy-alternative.yml`

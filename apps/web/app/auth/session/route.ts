@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { apiOrigin } from '@/lib/config';
 
+const isStaticExport = process.env.NEXT_SHOULD_EXPORT === 'true';
+
 export async function GET(request: Request) {
+  if (isStaticExport) {
+    return NextResponse.json({ user: null, profile: null });
+  }
+
   const accessToken = request.headers.get('sb-access-token');
 
   if (!accessToken) {

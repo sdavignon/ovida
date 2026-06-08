@@ -1,0 +1,18 @@
+# Ovida static export + API gateway for DreamHost/Apache.
+#
+# The Next.js web app is deployed as static files, but the admin API test
+# tools intentionally call same-origin API paths such as /api/v1/jobs.
+# Route those requests into the PHP gateway below so Apache does not return
+# a static 404 before the Fastify API service can process ffmpeg jobs.
+
+RewriteEngine On
+
+# Preserve bearer tokens for PHP/FastCGI before proxying to Fastify.
+SetEnvIfNoCase Authorization "(.+)" HTTP_AUTHORIZATION=$1
+
+# Avoid rewriting the gateway implementation to itself.
+RewriteRule ^api/index\.php$ - [L]
+
+# Same-origin API endpoints used by the console and ffmpeg test tool.
+RewriteRule ^api/(.*)$ /api/index.php?path=api/$1 [QSA,L]
+RewriteRule ^v1/(.*)$ /api/index.php?path=v1/$1 [QSA,L]
