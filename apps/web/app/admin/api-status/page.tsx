@@ -43,14 +43,16 @@ export default function ApiStatusPage() {
   const endpoints = useMemo(() => API_CATEGORY_DEFINITIONS, []);
 
   const updateStatus = useCallback((testId: string, update: Partial<EndpointStatus>) => {
-    setStatuses((prev) => ({
-      ...prev,
-      [testId]: {
-        state: prev[testId]?.state ?? 'idle',
-        ...prev[testId],
-        ...update,
-      },
-    }));
+    setStatuses((prev) => {
+      const current = prev[testId] ?? { state: 'idle' as EndpointState };
+      return {
+        ...prev,
+        [testId]: {
+          ...current,
+          ...update,
+        },
+      };
+    });
   }, []);
 
   const resolveOrigin = useCallback(

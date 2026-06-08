@@ -1,114 +1,75 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "🚀 OVIDA Services Deployment Script"
-echo "=================================="
+API_NAME="ovida-api"
+API_DIR="apps/api"
+API_PORT="${PORT:-4000}"
+PID_DIR=".pids"
+LOG_DIR="logs"
 
-# Fix TypeScript build issues first
-echo "🔧 Step 1: Fixing build dependencies..."
+printf '🚀 OVIDA service build/start\n'
+printf '===========================\n'
 
-# Remove problematic lockfile
-rm -f pnpm-lock.yaml
+printf '📦 Installing workspace dependencies...\n'
+pnpm install --frozen-lockfile
 
-# Reinstall dependencies
-echo "📦 Installing dependencies..."
-pnpm install --no-frozen-lockfile
+printf '🏗️ Building web static export...\n'
+pnpm --filter @ovida/web build
 
-# Force install TypeScript dependencies for web
-echo "🔧 Installing TypeScript deps for web app..."
-cd apps/web
-pnpm install --save-dev @types/react @types/react-dom @types/node typescript
-cd ../..
+printf '🏗️ Building API service...\n'
+pnpm --filter @ovida/schemas build
+pnpm --filter @ovida/api build
 
-echo "✅ Dependencies fixed!"
-
-# Build the web application  
-echo "🏗️ Step 2: Building web application..."
-cd apps/web
-pnpm run build
-if [ $? -eq 0 ]; then
-    echo "✅ Web build successful!"
-else
-    echo "❌ Web build failed!"
-    exit 1
+if [ ! -f "${API_DIR}/.env" ]; then
+  cat <<MSG
+❌ Missing ${API_DIR}/.env.
+Create it before starting the VPS API service. Required values include:
+  SUPABASE_URL
+  SUPABASE_ANON_KEY
+  SUPABASE_SERVICE_ROLE_KEY
+  VIDEO_API_KEY
+  APP_ORIGIN=https://ovida.1976.cloud
+  API_ORIGIN=https://ovida.1976.cloud
+  PORT=${API_PORT}
+MSG
+  exit 1
 fi
-cd ../..
 
-# Build the API
-echo "🏗️ Step 3: Building API..."
-cd apps/api
-pnpm install
-pnpm run build
-if [ $? -eq 0 ]; then
-    echo "✅ API build successful!"
+mkdir -p "${PID_DIR}" "${LOG_DIR}"
+
+printf '🚀 Starting Fastify API on 127.0.0.1:%s...\n' "${API_PORT}"
+if command -v pm2 >/dev/null 2>&1; then
+  if pm2 describe "${API_NAME}" >/dev/null 2>&1; then
+    (cd "${API_DIR}" && pm2 restart "${API_NAME}" --update-env)
+  else
+    (cd "${API_DIR}" && pm2 start dist/index.js --name "${API_NAME}" --update-env)
+  fi
+  pm2 save || true
 else
-    echo "❌ API build failed!"
-    exit 1
-fi
-cd ../..
-
-# Deploy services
-echo "🚀 Step 4: Deploying services..."
-
-# Stop existing services
-echo "🔄 Stopping existing services..."
-pkill -f "node mock_api.js" 2>/dev/null || true
-pkill -f "node dist/index.js" 2>/dev/null || true
-lsof -ti:4000 | xargs kill -9 2>/dev/null || true
-lsof -ti:4001 | xargs kill -9 2>/dev/null || true
-
-# Create simple environment file for mock API
-echo "⚙️ Setting up environment..."
-cat > .env << 'EOF'
-NODE_ENV=production
-PORT=4000
-API_ORIGIN=http://localhost:4000
-APP_ORIGIN=https://ovida.1976.cloud
-EOF
-
-# Start mock API service
-echo "🚀 Starting mock API service..."
-nohup node mock_api.js > api.log 2>&1 &
-API_PID=$!
-
-# Start WebSocket service if available
-if [ -d "apps/ws" ]; then
-    echo "🚀 Starting WebSocket service..."
-    cd apps/ws
-    if [ -f "package.json" ]; then
-        pnpm install
-        nohup pnpm start > ../ws.log 2>&1 &
-        WS_PID=$!
-        echo "✅ WebSocket service started with PID: $WS_PID"
+  if [ -f "${PID_DIR}/api.pid" ]; then
+    old_pid="$(cat "${PID_DIR}/api.pid")"
+    if [ -n "${old_pid}" ]; then
+      kill "${old_pid}" 2>/dev/null || true
     fi
-    cd ../..
+  fi
+  (cd "${API_DIR}" && nohup node dist/index.js > "../../${LOG_DIR}/api.log" 2>&1 & echo $! > "../../${PID_DIR}/api.pid")
 fi
 
-echo "✅ Services deployment complete!"
-echo ""
-echo "📊 Service Status:"
-echo "=================="
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  status="$(curl -s -o /tmp/ovida-api-health.txt -w '%{http_code}' "http://127.0.0.1:${API_PORT}/api/v1/jobs/deploy-smoke" || true)"
+  if [ "${status}" = "401" ] || [ "${status}" = "404" ]; then
+    printf '✅ API service is reachable on http://127.0.0.1:%s (HTTP %s).\n' "${API_PORT}" "${status}"
+    printf '✅ Static web output is in apps/web/out.\n'
+    exit 0
+  fi
+  printf 'Waiting for API service (attempt %s, HTTP %s)...\n' "${attempt}" "${status}"
+  sleep 2
+done
 
-# Check API service
-sleep 3
-if ps -p $API_PID > /dev/null 2>&1; then
-    echo "✅ API Service: Running (PID: $API_PID)"
-    echo "🧪 Testing API endpoint..."
-    curl -X POST http://localhost:4000/v1/demos/start -H "Content-Type: application/json" 2>/dev/null | head -c 100
-    echo ""
+printf '❌ API service did not become reachable on http://127.0.0.1:%s.\n' "${API_PORT}"
+if command -v pm2 >/dev/null 2>&1; then
+  pm2 logs "${API_NAME}" --lines 80 --nostream || true
 else
-    echo "❌ API Service: Failed to start"
-    echo "📝 Checking logs:"
-    cat api.log
+  tail -n 80 "${LOG_DIR}/api.log" || true
 fi
-
-echo ""
-echo "🎯 Results:"
-echo "==========="
-echo "✅ Build issues fixed"
-echo "✅ Services deployed"
-echo "🌐 Website: https://ovida.1976.cloud"
-echo "🔗 API: http://localhost:4000"
-echo "📝 Logs: api.log"
-
-echo ""
-echo "🎉 Deployment complete! Demo should now work."
+exit 1

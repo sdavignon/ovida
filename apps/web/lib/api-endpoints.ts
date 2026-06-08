@@ -248,6 +248,19 @@ export const API_CATEGORY_DEFINITIONS: ApiCategoryDefinition[] = [
         },
         notice: 'Successful jobs redirect to the generated asset URL.',
       },
+      {
+        id: 'external-video-log',
+        label: 'Fetch Video Job Log',
+        method: 'GET',
+        path: '/api/v1/jobs/job_12345/log',
+        description: 'Fetch the archived ffmpeg log for a video render job.',
+        category: 'external',
+        allowBody: false,
+        defaultHeaders: {
+          Authorization: 'Bearer <VIDEO_API_KEY>',
+        },
+        notice: 'Replace job_12345 with the identifier returned from the create job request.',
+      },
     ],
   },
 ];
