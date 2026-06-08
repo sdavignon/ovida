@@ -298,20 +298,25 @@ export default function AdminPage() {
           <span>Live endpoint status plus default test harness</span>
         </header>
         <p className={styles.panelCopy}>
-          Monitor every internal and partner-facing route from the console. Flip between the live status board and
-          the default test harness to validate payloads, latency, and headers in a few clicks.
+          Monitor every internal and partner-facing route from the console. Open the API test tools at
+          <strong> /admin/api-tests</strong>, or jump straight into the ffmpeg workflow to upload assets, run a
+          render, and inspect job logs.
         </p>
         <div className={styles.apiActions}>
           <Link href="/admin/api-status" className={styles.primaryLink}>
             View Endpoint Status
           </Link>
           <Link href="/admin/api-tests" className={styles.secondaryLink}>
-            Open Test Harness
+            Open API Test Tools
+          </Link>
+          <Link href="/admin/api-tests#ffmpeg-api-tool" className={styles.secondaryLink}>
+            Open ffmpeg API Tool
           </Link>
         </div>
         <ul className={styles.apiList}>
           <li>See availability, status codes, and probe latency for every endpoint.</li>
           <li>Run pre-filled demo, run, room, imagery, and video job requests with default settings.</li>
+          <li>Use the ffmpeg API tool to upload source, logo, and audio assets, then view job results and logs.</li>
           <li>Swap origins to verify staging or partner environments without leaving the admin space.</li>
         </ul>
       </section>
