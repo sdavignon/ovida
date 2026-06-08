@@ -44,6 +44,34 @@ jobs:
         run: pnpm --filter @ovida/web build
         env:
           NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL != '' && vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' && vars.NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_API_ORIGIN: ${{ vars.NEXT_PUBLIC_API_ORIGIN }}
+
+      - name: Build API service
+        run: |
+          pnpm --filter @ovida/schemas build
+          pnpm --filter @ovida/api build
+
+      - name: Package API service
+        env:
+          API_ENV: ${{ secrets.API_ENV }}
+        run: |
+          set -euo pipefail
+          mkdir -p api-deploy
+          tar -czf "${API_BUNDLE_PATH}" \
+            package.json \
+            pnpm-lock.yaml \
+            pnpm-workspace.yaml \
+            apps/api/package.json \
+            apps/api/dist \
+            packages/schemas/package.json \
+            packages/schemas/dist
+
+          if [ -n "${API_ENV}" ]; then
+            printf '%s\n' "${API_ENV}" > api-deploy/.api.env
+            chmod 600 api-deploy/.api.env
+          fi
 
       - name: Build API service
         run: |
@@ -114,6 +142,8 @@ jobs:
           SSH_KEY: ${{ secrets.SSH_KEY }}
           REMOTE_PATH: ${{ env.REMOTE_PATH }}
           API_BUNDLE_PATH: ${{ env.API_BUNDLE_PATH }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL != '' && vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' && vars.NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
           missing=()
@@ -128,6 +158,14 @@ jobs:
 
           if [ -z "${REMOTE_PATH}" ]; then
             missing+=("REMOTE_PATH (repo variable or secret)")
+          fi
+
+          if [ -z "${NEXT_PUBLIC_SUPABASE_URL}" ]; then
+            missing+=("NEXT_PUBLIC_SUPABASE_URL (repo variable or secret)")
+          fi
+
+          if [ -z "${NEXT_PUBLIC_SUPABASE_ANON_KEY}" ]; then
+            missing+=("NEXT_PUBLIC_SUPABASE_ANON_KEY (repo variable or secret)")
           fi
 
           if [ -z "${SSH_PASSWORD}" ] && [ -z "${SSH_KEY}" ]; then
@@ -233,9 +271,9 @@ jobs:
 
             sshpass -p "${SSH_PASSWORD}" \
               scp -P "${SSH_PORT}" -o StrictHostKeyChecking=no "${API_BUNDLE_PATH}" "${DEST}"
-            if [ -f api-deploy/api.env ]; then
+            if [ -f api-deploy/.api.env ]; then
               sshpass -p "${SSH_PASSWORD}" \
-                scp -P "${SSH_PORT}" -o StrictHostKeyChecking=no api-deploy/api.env "${DEST}"
+                scp -P "${SSH_PORT}" -o StrictHostKeyChecking=no api-deploy/.api.env "${DEST}"
             fi
           elif [ -n "${SSH_KEY}" ]; then
             mkdir -p ~/.ssh
@@ -244,8 +282,8 @@ jobs:
             chmod 600 "${KEY_FILE}"
 
             scp -i "${KEY_FILE}" -P "${SSH_PORT}" -o StrictHostKeyChecking=no "${API_BUNDLE_PATH}" "${DEST}"
-            if [ -f api-deploy/api.env ]; then
-              scp -i "${KEY_FILE}" -P "${SSH_PORT}" -o StrictHostKeyChecking=no api-deploy/api.env "${DEST}"
+            if [ -f api-deploy/.api.env ]; then
+              scp -i "${KEY_FILE}" -P "${SSH_PORT}" -o StrictHostKeyChecking=no api-deploy/.api.env "${DEST}"
             fi
             rm -f "${KEY_FILE}"
           else
@@ -275,7 +313,7 @@ jobs:
 
             API_DIR="${API_REMOTE_PATH:-$(dirname "${REMOTE_DIR}")/ovida-api}"
             API_ARCHIVE="${REMOTE_DIR}/ovida-api-runtime.tar.gz"
-            API_ENV_UPLOAD="${REMOTE_DIR}/api.env"
+            API_ENV_UPLOAD="${REMOTE_DIR}/.api.env"
             API_NAME="ovida-api"
 
             if [ ! -f "${API_ARCHIVE}" ]; then

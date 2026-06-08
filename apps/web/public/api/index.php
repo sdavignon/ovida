@@ -100,7 +100,8 @@ function gateway_api_origin(): string
     return rtrim($configured, '/');
 }
 
-$target = gateway_api_origin() . '/' . gateway_path() . gateway_query_string();
+$path = gateway_path();
+$target = gateway_api_origin() . '/' . $path . gateway_query_string();
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $body = file_get_contents('php://input');
 
@@ -117,6 +118,11 @@ $context = stream_context_create([
 $response = @file_get_contents($target, false, $context);
 
 if ($response === false && empty($http_response_header)) {
+    require_once __DIR__ . '/video-fallback.php';
+    if (video_fallback_handle($path, $method, $body === false ? '' : $body)) {
+        exit;
+    }
+
     http_response_code(502);
     header('Content-Type: text/plain; charset=utf-8');
     echo 'Ovida API gateway could not reach ' . gateway_api_origin() . '.';

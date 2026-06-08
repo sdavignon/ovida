@@ -29,6 +29,8 @@ This repository uses GitHub Actions to automatically deploy the Ovida static web
 | `SSH_USER` | `dh_rt2c39` |
 | `SSH_PASSWORD` | `$t3FjqpSzKM&%H@ZrZ7fpRaj_` |
 | `SSH_PORT` | `22` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL used by the static web build. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon/public key used by browser auth. |
 
 ### Step 2: Add Repository Variables
 
@@ -66,7 +68,7 @@ Optional repository variable/secret:
 |------|-------|
 | `API_REMOTE_PATH` | Absolute VPS path for the API runtime bundle. Defaults to a sibling directory named `ovida-api` next to `REMOTE_PATH`. |
 
-The workflow uses PM2 when it is installed; otherwise it starts `node dist/index.js` with `nohup` and writes a PID file. It then checks `http://127.0.0.1:4000/api/v1/jobs/deploy-smoke`, which should return `401` without an API key when the Fastify service is reachable.
+The workflow injects the `NEXT_PUBLIC_SUPABASE_*` values into the static web build so the browser login bundle does not emit `Supabase environment variables not configured`. It uses PM2 when it is installed; otherwise it starts `node dist/index.js` with `nohup` and writes a PID file. It then checks `http://127.0.0.1:4000/api/v1/jobs/deploy-smoke`, which should return `401` without an API key when the Fastify service is reachable.
 
 ### Step 4: Verify Remote Path
 
