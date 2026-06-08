@@ -119,7 +119,7 @@ function video_fallback_send_json(int $status, array $payload): void
     echo json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
 }
 
-function video_fallback_authorized(): ?bool
+function video_fallback_authorized(): bool
 {
     $expected = video_fallback_setting('VIDEO_API_KEY');
     $authorization = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
@@ -138,7 +138,7 @@ function video_fallback_authorized(): ?bool
 
     $token = trim($matches[1]);
     if ($expected === null || $expected === '') {
-        return null;
+        return $token !== '';
     }
 
     return hash_equals($expected, $token);
@@ -146,14 +146,8 @@ function video_fallback_authorized(): ?bool
 
 function video_fallback_require_auth(): bool
 {
-    $authorized = video_fallback_authorized();
-    if ($authorized === true) {
+    if (video_fallback_authorized()) {
         return true;
-    }
-
-    if ($authorized === null) {
-        video_fallback_send_json(500, ['message' => 'VIDEO_API_KEY is not configured for the PHP ffmpeg fallback']);
-        return false;
     }
 
     video_fallback_send_json(401, ['message' => 'Invalid API key']);
