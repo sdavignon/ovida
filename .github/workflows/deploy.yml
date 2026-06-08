@@ -56,6 +56,12 @@ jobs:
       - name: Package API service
         env:
           API_ENV: ${{ secrets.API_ENV }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL != '' && vars.SUPABASE_URL || secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY != '' && vars.SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VIDEO_API_KEY: ${{ vars.VIDEO_API_KEY != '' && vars.VIDEO_API_KEY || secrets.VIDEO_API_KEY }}
+          APP_ORIGIN: ${{ vars.APP_ORIGIN != '' && vars.APP_ORIGIN || 'https://ovida.1976.cloud' }}
+          API_ORIGIN: ${{ vars.API_ORIGIN != '' && vars.API_ORIGIN || 'https://ovida.1976.cloud' }}
         run: |
           set -euo pipefail
           mkdir -p api-deploy
@@ -71,6 +77,21 @@ jobs:
           if [ -n "${API_ENV}" ]; then
             printf '%s\n' "${API_ENV}" > api-deploy/.api.env
             chmod 600 api-deploy/.api.env
+          elif [ -n "${SUPABASE_URL}" ] && [ -n "${SUPABASE_ANON_KEY}" ] && [ -n "${SUPABASE_SERVICE_ROLE_KEY}" ] && [ -n "${VIDEO_API_KEY}" ]; then
+            {
+              printf 'NODE_ENV=production\n'
+              printf 'PORT=4000\n'
+              printf 'SUPABASE_URL=%s\n' "${SUPABASE_URL}"
+              printf 'SUPABASE_ANON_KEY=%s\n' "${SUPABASE_ANON_KEY}"
+              printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "${SUPABASE_SERVICE_ROLE_KEY}"
+              printf 'VIDEO_API_KEY=%s\n' "${VIDEO_API_KEY}"
+              printf 'APP_ORIGIN=%s\n' "${APP_ORIGIN}"
+              printf 'API_ORIGIN=%s\n' "${API_ORIGIN}"
+            } > api-deploy/.api.env
+            chmod 600 api-deploy/.api.env
+          else
+            echo "⚠️ API_ENV was not set and individual API secrets were incomplete; Fastify startup will be skipped on the VPS."
+            echo "⚠️ Set API_ENV or SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, and VIDEO_API_KEY to start the Node API."
           fi
 
       - name: Verify build output
@@ -305,10 +326,10 @@ jobs:
               mv "${API_ENV_UPLOAD}" "${API_DIR}/apps/api/.env"
               chmod 600 "${API_DIR}/apps/api/.env"
             elif [ ! -f "${API_DIR}/apps/api/.env" ]; then
-              echo "❌ Missing API environment file."
-              echo "Create ${API_DIR}/apps/api/.env on the VPS or set the GitHub secret API_ENV."
-              echo "Required values include SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, VIDEO_API_KEY, APP_ORIGIN, and API_ORIGIN."
-              exit 1
+              echo "⚠️ Missing API environment file; skipping Fastify API startup."
+              echo "⚠️ The static web deploy can continue, and /api/v1/jobs is handled by the PHP ffmpeg fallback."
+              echo "⚠️ To start Fastify on future deploys, set API_ENV or the individual API secrets documented in DEPLOYMENT.md."
+              exit 0
             fi
 
             cd "${API_DIR}"
