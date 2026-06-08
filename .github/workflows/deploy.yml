@@ -73,6 +73,31 @@ jobs:
             chmod 600 api-deploy/.api.env
           fi
 
+      - name: Build API service
+        run: |
+          pnpm --filter @ovida/schemas build
+          pnpm --filter @ovida/api build
+
+      - name: Package API service
+        env:
+          API_ENV: ${{ secrets.API_ENV }}
+        run: |
+          set -euo pipefail
+          mkdir -p api-deploy
+          tar -czf "${API_BUNDLE_PATH}" \
+            package.json \
+            pnpm-lock.yaml \
+            pnpm-workspace.yaml \
+            apps/api/package.json \
+            apps/api/dist \
+            packages/schemas/package.json \
+            packages/schemas/dist
+
+          if [ -n "${API_ENV}" ]; then
+            printf '%s\n' "${API_ENV}" > api-deploy/api.env
+            chmod 600 api-deploy/api.env
+          fi
+
       - name: Verify build output
         run: |
           echo "Checking build output..."
