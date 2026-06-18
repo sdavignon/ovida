@@ -77,6 +77,7 @@
   - Coqui (local TTS fallback): `COQUI_TTS_URL`, `COQUI_TTS_SPEAKER` (or `COQUI_TTS_VOICE`), `COQUI_TTS_LANGUAGE`, `COQUI_TTS_STYLE_WAV`, and `COQUI_TTS_SPEED`.
   - OpenAI realtime audio: `OPENAI_API_KEY`, `OPENAI_REALTIME_MODEL`, `OPENAI_REALTIME_BASE_URL`, `OPENAI_REALTIME_VOICE`.
 - **Video rendering** – `VIDEO_API_KEY` is required. Storage and limits are controlled with `VIDEO_TMP_DIR`, `VIDEO_OUTPUT_DIR`, `VIDEO_PUBLIC_BASE_URL`, `VIDEO_MAX_INPUT_BYTES`, `VIDEO_MAX_OVERLAY_BYTES`, `VIDEO_MAX_AUDIO_BYTES`, and `VIDEO_CALLBACK_TIMEOUT_MS`. Ensure the directories exist or let the service create them with writable permissions.
+- **Lyric alignment** – `GENTLE_URL` points the API at the Gentle forced-alignment service. Production deployments start `lowerquality/gentle:latest` with Docker on `GENTLE_PORT` (default `8765`) and default the API URL to `http://127.0.0.1:8765`.
 - **Auth providers** – Configure Supabase OAuth (e.g., Google) by setting `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 - **Additional providers** – If you rely on OpenAI image generation, set `OPENAI_API_KEY` and (optionally) `OPENAI_API_BASE_URL`.
 - **Runtime environment** – `NODE_ENV` defaults to `development`; adjust to `production` in deployed environments alongside hardened CORS settings. `PORT` controls the API server port (defaults to 4000).

@@ -55,12 +55,13 @@ Add one of the following before running the deployment:
    PORT=4000
    APP_ORIGIN=https://ovida.1976.cloud
    API_ORIGIN=https://ovida.1976.cloud
+   GENTLE_URL=http://127.0.0.1:8765
    SUPABASE_URL=...
    SUPABASE_ANON_KEY=...
    SUPABASE_SERVICE_ROLE_KEY=...
    VIDEO_API_KEY=...
    ```
-2. **Separate secrets fallback:** if `API_ENV` is not set, the workflow will synthesize `.env` from `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `VIDEO_API_KEY` repository secrets/variables, plus optional `APP_ORIGIN` and `API_ORIGIN` variables.
+2. **Separate secrets fallback:** if `API_ENV` is not set, the workflow will synthesize `.env` from `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `VIDEO_API_KEY` repository secrets/variables, plus optional `APP_ORIGIN`, `API_ORIGIN`, and `GENTLE_URL` variables.
 3. **Manual VPS fallback:** create the file once on the server at the API deploy path, which defaults to a sibling of the web root named `ovida-api/apps/api/.env`.
 
 If none of these API env sources exists, deployment no longer fails at this step; it skips the Fastify startup and leaves the static PHP ffmpeg fallback available for `/api/v1/jobs`. The fallback normally reads `VIDEO_API_KEY` from protected `.api.env`; if that file is missing on the VPS, it still accepts any non-empty bearer token from the admin test form instead of blocking ffmpeg processing with a configuration error.
@@ -70,8 +71,10 @@ Optional repository variable/secret:
 | Name | Value |
 |------|-------|
 | `API_REMOTE_PATH` | Absolute VPS path for the API runtime bundle. Defaults to a sibling directory named `ovida-api` next to `REMOTE_PATH`. |
+| `GENTLE_PORT` | Public VPS port for the Gentle forced-alignment container. Defaults to `8765`. |
+| `GENTLE_URL` | URL the API should use for Gentle. Defaults to `http://127.0.0.1:8765` when the workflow synthesizes the API env file. |
 
-The workflow injects the `NEXT_PUBLIC_SUPABASE_*` values into the static web build so the browser login bundle does not emit `Supabase environment variables not configured`. It uses PM2 when it is installed; otherwise it starts `node dist/index.js` with `nohup` and writes a PID file. It then checks `http://127.0.0.1:4000/api/v1/jobs/deploy-smoke`, which should return `401` without an API key when the Fastify service is reachable.
+The workflow injects the `NEXT_PUBLIC_SUPABASE_*` values into the static web build so the browser login bundle does not emit `Supabase environment variables not configured`. It uses PM2 when it is installed; otherwise it starts `node dist/index.js` with `nohup` and writes a PID file. It then checks `http://127.0.0.1:4000/api/v1/jobs/deploy-smoke`, which should return `401` without an API key when the Fastify service is reachable. The workflow also starts a Docker-managed `lowerquality/gentle:latest` container named `ovida-gentle`, maps `GENTLE_PORT` to container port `8765`, and fails deployment if the alignment service does not accept local TCP connections.
 
 ### Step 4: Verify Remote Path
 
