@@ -16,6 +16,7 @@ jobs:
       BUILD_OUTPUT_DIR: apps/web/out
       API_BUNDLE_PATH: api-deploy/ovida-api-runtime.tar.gz
       API_REMOTE_PATH: ${{ vars.API_REMOTE_PATH != '' && vars.API_REMOTE_PATH || secrets.API_REMOTE_PATH }}
+      GENTLE_PORT: ${{ vars.GENTLE_PORT != '' && vars.GENTLE_PORT || '8765' }}
       REMOTE_PATH: ${{ vars.REMOTE_PATH != '' && vars.REMOTE_PATH || secrets.REMOTE_PATH }}
       NEXT_TELEMETRY_DISABLED: 1
 
@@ -62,6 +63,7 @@ jobs:
           VIDEO_API_KEY: ${{ vars.VIDEO_API_KEY != '' && vars.VIDEO_API_KEY || secrets.VIDEO_API_KEY }}
           APP_ORIGIN: ${{ vars.APP_ORIGIN != '' && vars.APP_ORIGIN || 'https://ovida.1976.cloud' }}
           API_ORIGIN: ${{ vars.API_ORIGIN != '' && vars.API_ORIGIN || 'https://ovida.1976.cloud' }}
+          GENTLE_URL: ${{ vars.GENTLE_URL != '' && vars.GENTLE_URL || 'http://127.0.0.1:8765' }}
         run: |
           set -euo pipefail
           mkdir -p api-deploy
@@ -76,6 +78,9 @@ jobs:
 
           if [ -n "${API_ENV}" ]; then
             printf '%s\n' "${API_ENV}" > api-deploy/.api.env
+            if ! grep -Eq '^GENTLE_URL=' api-deploy/.api.env; then
+              printf 'GENTLE_URL=%s\n' "${GENTLE_URL}" >> api-deploy/.api.env
+            fi
             chmod 600 api-deploy/.api.env
           elif [ -n "${SUPABASE_URL}" ] && [ -n "${SUPABASE_ANON_KEY}" ] && [ -n "${SUPABASE_SERVICE_ROLE_KEY}" ] && [ -n "${VIDEO_API_KEY}" ]; then
             {
@@ -87,6 +92,7 @@ jobs:
               printf 'VIDEO_API_KEY=%s\n' "${VIDEO_API_KEY}"
               printf 'APP_ORIGIN=%s\n' "${APP_ORIGIN}"
               printf 'API_ORIGIN=%s\n' "${API_ORIGIN}"
+              printf 'GENTLE_URL=%s\n' "${GENTLE_URL}"
             } > api-deploy/.api.env
             chmod 600 api-deploy/.api.env
           else
@@ -406,6 +412,58 @@ jobs:
             else
               tail -n 80 "${API_DIR}/logs/api.log" || true
             fi
+            exit 1
+
+      - name: Start Gentle alignment service
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GENTLE_PORT: ${{ env.GENTLE_PORT }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          envs: GENTLE_PORT
+          script: |
+            set -euo pipefail
+
+            GENTLE_PORT="${GENTLE_PORT:-8765}"
+            GENTLE_NAME="ovida-gentle"
+            GENTLE_IMAGE="lowerquality/gentle:latest"
+
+            if ! command -v docker >/dev/null 2>&1; then
+              echo "❌ Docker is required on the deployment host to run the Gentle alignment service."
+              exit 1
+            fi
+
+            if ! docker info >/dev/null 2>&1; then
+              echo "❌ Docker is installed, but the deployment user cannot talk to the Docker daemon."
+              exit 1
+            fi
+
+            if docker ps -a --format '{{.Names}}' | grep -Fxq "${GENTLE_NAME}"; then
+              docker rm -f "${GENTLE_NAME}" >/dev/null
+            fi
+
+            docker pull "${GENTLE_IMAGE}"
+            docker run -d \
+              --name "${GENTLE_NAME}" \
+              --restart unless-stopped \
+              -p "${GENTLE_PORT}:8765" \
+              "${GENTLE_IMAGE}"
+
+            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              if python3 -c "import socket; socket.create_connection(('127.0.0.1', int('${GENTLE_PORT}')), 5).close()" >/dev/null 2>&1; then
+                echo "✅ Gentle alignment service is reachable on http://127.0.0.1:${GENTLE_PORT}."
+                exit 0
+              fi
+              echo "Waiting for Gentle alignment service on 127.0.0.1:${GENTLE_PORT} (attempt ${attempt})..."
+              sleep 5
+            done
+
+            echo "❌ Gentle alignment service did not become reachable on http://127.0.0.1:${GENTLE_PORT}."
+            docker logs --tail 100 "${GENTLE_NAME}" || true
             exit 1
 
       - name: Verify remote upload
