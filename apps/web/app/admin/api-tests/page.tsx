@@ -297,6 +297,32 @@ export default function ApiTestToolsPage() {
     }
   };
 
+  const uploadFfmpegAsset = async (file: File, apiKey: string) => {
+    const body = new FormData();
+    body.append('file', file);
+
+    const response = await fetch(buildExternalApiUrl('/api/v1/uploads'), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body,
+    });
+    const text = await response.text();
+    if (response.status === 404 || response.status === 405) {
+      return null;
+    }
+
+    let parsed: { url?: string; message?: string } | null = null;
+    try {
+      parsed = text.trim() ? JSON.parse(text) as { url?: string; message?: string } : null;
+    } catch {
+      parsed = null;
+    }
+    if (!response.ok || !parsed?.url) {
+      throw new Error(parsed?.message ?? (text.trim() || `Upload failed: ${response.status} ${response.statusText}`));
+    }
+    return parsed.url;
+  };
+
   const fetchFfmpegLog = async (jobId: string, apiKey: string) => {
     const response = await fetch(buildExternalApiUrl(`/api/v1/jobs/${jobId}/log`), {
       headers: { Authorization: `Bearer ${apiKey}` },
@@ -380,13 +406,54 @@ export default function ApiTestToolsPage() {
       setFfmpegTool((prev) => ({ ...prev, status: 'error', message: 'Enter a VIDEO_API_KEY before running.' }));
       return;
     }
-    if (!ffmpegTool.sourceDataUrl) {
+    if (!ffmpegTool.sourceFile) {
       setFfmpegTool((prev) => ({ ...prev, status: 'error', message: 'Upload a source video before running.' }));
       return;
     }
 
+    setFfmpegTool((prev) => ({
+      ...prev,
+      status: 'loading',
+      message: 'Uploading ffmpeg assets…',
+      result: '',
+      log: '',
+      downloadUrl: undefined,
+    }));
+
+    let sourceUrl: string;
+    let logoUrl: string | undefined;
+    let audioUrl: string | undefined;
+    try {
+      const uploadedSourceUrl = await uploadFfmpegAsset(ffmpegTool.sourceFile, apiKey);
+      const uploadedLogoUrl = ffmpegTool.logoFile ? await uploadFfmpegAsset(ffmpegTool.logoFile, apiKey) : undefined;
+      const uploadedAudioUrl = ffmpegTool.audioFile ? await uploadFfmpegAsset(ffmpegTool.audioFile, apiKey) : undefined;
+      const uploadRouteUnsupported = uploadedSourceUrl === null || uploadedLogoUrl === null || uploadedAudioUrl === null;
+
+      sourceUrl = uploadedSourceUrl ?? ffmpegTool.sourceDataUrl ?? '';
+      logoUrl = uploadedLogoUrl ?? ffmpegTool.logoDataUrl;
+      audioUrl = uploadedAudioUrl ?? ffmpegTool.audioDataUrl;
+
+      if (!sourceUrl) {
+        throw new Error('Source upload failed and no local data URL fallback is available.');
+      }
+
+      if (uploadRouteUnsupported) {
+        setFfmpegTool((prev) => ({
+          ...prev,
+          message: 'Upload endpoint unavailable; submitting direct API request with data URL assets…',
+        }));
+      }
+    } catch (error) {
+      setFfmpegTool((prev) => ({
+        ...prev,
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Unable to upload ffmpeg assets.',
+      }));
+      return;
+    }
+
     const payload = {
-      source_url: ffmpegTool.sourceDataUrl,
+      source_url: sourceUrl,
       overlays: [
         {
           type: 'text',
@@ -400,11 +467,11 @@ export default function ApiTestToolsPage() {
           end: 4,
           shadow: true,
         },
-        ...(ffmpegTool.logoDataUrl
+        ...(logoUrl
           ? [
               {
                 type: 'logo',
-                asset_url: ffmpegTool.logoDataUrl,
+                asset_url: logoUrl,
                 x: 'main_w-overlay_w-32',
                 y: 'main_h-overlay_h-32',
                 start: 0,
@@ -417,14 +484,14 @@ export default function ApiTestToolsPage() {
           : []),
       ],
       output_format: ffmpegTool.outputFormat,
-      ...(ffmpegTool.audioDataUrl ? { audio_url: ffmpegTool.audioDataUrl } : {}),
+      ...(audioUrl ? { audio_url: audioUrl } : {}),
     };
 
     setFfmpegTool((prev) => ({
       ...prev,
       status: 'loading',
       message: 'Submitting ffmpeg render job…',
-      result: JSON.stringify(payload, (key, value) => (String(value).startsWith('data:') ? '[uploaded data URL]' : value), 2),
+      result: JSON.stringify(payload, null, 2),
       log: '',
       downloadUrl: undefined,
     }));
@@ -518,7 +585,7 @@ export default function ApiTestToolsPage() {
             <p className={styles.eyebrow}>ffmpeg workflow</p>
             <h2>Upload Assets & Run Video Job</h2>
             <p>
-              Convert local test assets to data URLs, submit them to the ffmpeg API, poll for results,
+              Upload local test assets to real URLs, submit them to the ffmpeg API, poll for results,
               and fetch the archived render log without leaving the admin test page.
             </p>
           </div>
