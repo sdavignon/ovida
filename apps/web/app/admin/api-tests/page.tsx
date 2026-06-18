@@ -307,6 +307,10 @@ export default function ApiTestToolsPage() {
       body,
     });
     const text = await response.text();
+    if (response.status === 404 || response.status === 405) {
+      return null;
+    }
+
     let parsed: { url?: string; message?: string } | null = null;
     try {
       parsed = text.trim() ? JSON.parse(text) as { url?: string; message?: string } : null;
@@ -420,9 +424,25 @@ export default function ApiTestToolsPage() {
     let logoUrl: string | undefined;
     let audioUrl: string | undefined;
     try {
-      sourceUrl = await uploadFfmpegAsset(ffmpegTool.sourceFile, apiKey);
-      logoUrl = ffmpegTool.logoFile ? await uploadFfmpegAsset(ffmpegTool.logoFile, apiKey) : undefined;
-      audioUrl = ffmpegTool.audioFile ? await uploadFfmpegAsset(ffmpegTool.audioFile, apiKey) : undefined;
+      const uploadedSourceUrl = await uploadFfmpegAsset(ffmpegTool.sourceFile, apiKey);
+      const uploadedLogoUrl = ffmpegTool.logoFile ? await uploadFfmpegAsset(ffmpegTool.logoFile, apiKey) : undefined;
+      const uploadedAudioUrl = ffmpegTool.audioFile ? await uploadFfmpegAsset(ffmpegTool.audioFile, apiKey) : undefined;
+      const uploadRouteUnsupported = uploadedSourceUrl === null || uploadedLogoUrl === null || uploadedAudioUrl === null;
+
+      sourceUrl = uploadedSourceUrl ?? ffmpegTool.sourceDataUrl ?? '';
+      logoUrl = uploadedLogoUrl ?? ffmpegTool.logoDataUrl;
+      audioUrl = uploadedAudioUrl ?? ffmpegTool.audioDataUrl;
+
+      if (!sourceUrl) {
+        throw new Error('Source upload failed and no local data URL fallback is available.');
+      }
+
+      if (uploadRouteUnsupported) {
+        setFfmpegTool((prev) => ({
+          ...prev,
+          message: 'Upload endpoint unavailable; submitting direct API request with data URL assets…',
+        }));
+      }
     } catch (error) {
       setFfmpegTool((prev) => ({
         ...prev,
