@@ -100,6 +100,11 @@ function video_fallback_jobs_root(): string
     return video_fallback_output_root() . '/php-jobs';
 }
 
+function video_fallback_upload_root(): string
+{
+    return video_fallback_output_root() . '/uploads';
+}
+
 function video_fallback_public_origin(): string
 {
     $configured = video_fallback_setting('APP_ORIGIN') ?: video_fallback_setting('API_ORIGIN');
@@ -186,8 +191,13 @@ function video_fallback_write_job(array $job): void
 
 function video_fallback_decode_asset(string $dataUrl, string $destination, array $allowedMimes): void
 {
+    if (preg_match('#^https?://#i', $dataUrl)) {
+        video_fallback_download_asset($dataUrl, $destination, $allowedMimes);
+        return;
+    }
+
     if (!preg_match('#^data:([^;,]+)(;base64)?,(.*)$#s', $dataUrl, $matches)) {
-        throw new RuntimeException('Only data URL uploads are supported by the PHP fallback.');
+        throw new RuntimeException('Asset URL must be an http(s) URL or a data URL upload.');
     }
 
     $mime = strtolower($matches[1]);
@@ -201,6 +211,96 @@ function video_fallback_decode_asset(string $dataUrl, string $destination, array
     }
 
     file_put_contents($destination, $raw, LOCK_EX);
+}
+
+
+function video_fallback_download_asset(string $url, string $destination, array $allowedMimes): void
+{
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'ignore_errors' => true,
+            'timeout' => 300,
+        ],
+    ]);
+    $data = @file_get_contents($url, false, $context);
+    if ($data === false || $data === '') {
+        throw new RuntimeException('Unable to download asset URL.');
+    }
+
+    $contentType = null;
+    foreach ($http_response_header ?? [] as $headerLine) {
+        if (preg_match('#^HTTP/\S+\s+(\d{3})#', $headerLine, $matches) && (int) $matches[1] >= 400) {
+            throw new RuntimeException('Asset URL returned HTTP ' . $matches[1] . '.');
+        }
+        if (stripos($headerLine, 'Content-Type:') === 0) {
+            $contentType = strtolower(trim(explode(':', $headerLine, 2)[1]));
+            $contentType = trim(explode(';', $contentType, 2)[0]);
+        }
+    }
+
+    if ($allowedMimes && $contentType && !in_array($contentType, $allowedMimes, true)) {
+        throw new RuntimeException('Unsupported asset URL type: ' . $contentType);
+    }
+
+    file_put_contents($destination, $data, LOCK_EX);
+}
+
+function video_fallback_upload_asset(): void
+{
+    if (!video_fallback_require_auth()) {
+        return;
+    }
+
+    $upload = $_FILES['file'] ?? null;
+    if (!is_array($upload) || ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        video_fallback_send_json(400, ['message' => 'Upload a file field named file.']);
+        return;
+    }
+
+    $tmpName = (string) ($upload['tmp_name'] ?? '');
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        video_fallback_send_json(400, ['message' => 'Uploaded file is not available.']);
+        return;
+    }
+
+    $mime = strtolower((string) (mime_content_type($tmpName) ?: ($upload['type'] ?? 'application/octet-stream')));
+    $extensions = [
+        'video/mp4' => 'mp4',
+        'video/quicktime' => 'mov',
+        'video/x-matroska' => 'mkv',
+        'video/webm' => 'webm',
+        'image/png' => 'png',
+        'image/jpeg' => 'jpg',
+        'image/webp' => 'webp',
+        'audio/mpeg' => 'mp3',
+        'audio/mp4' => 'm4a',
+        'audio/wav' => 'wav',
+        'audio/x-wav' => 'wav',
+        'audio/aac' => 'aac',
+    ];
+    if (!isset($extensions[$mime])) {
+        video_fallback_send_json(400, ['message' => 'Unsupported upload type: ' . $mime]);
+        return;
+    }
+
+    $root = video_fallback_upload_root();
+    if (!is_dir($root)) {
+        mkdir($root, 0775, true);
+    }
+
+    $filename = bin2hex(random_bytes(16)) . '.' . $extensions[$mime];
+    $destination = $root . '/' . $filename;
+    if (!move_uploaded_file($tmpName, $destination)) {
+        video_fallback_send_json(500, ['message' => 'Unable to store uploaded file.']);
+        return;
+    }
+
+    video_fallback_send_json(201, [
+        'url' => video_fallback_public_origin() . '/api/v1/uploads/' . rawurlencode($filename),
+        'content_type' => $mime,
+        'size' => filesize($destination),
+    ]);
 }
 
 function video_fallback_find_logo_overlay(array $payload): ?array
@@ -361,9 +461,39 @@ function video_fallback_download(string $jobId): void
     readfile($path);
 }
 
+
+function video_fallback_uploaded_asset(string $filename): void
+{
+    if (!preg_match('/^[a-f0-9]{32}\.[A-Za-z0-9]+$/', $filename)) {
+        video_fallback_send_json(404, ['message' => 'Upload not found']);
+        return;
+    }
+
+    $path = video_fallback_upload_root() . '/' . $filename;
+    if (!is_readable($path)) {
+        video_fallback_send_json(404, ['message' => 'Upload not found']);
+        return;
+    }
+
+    $mime = mime_content_type($path) ?: 'application/octet-stream';
+    header('Content-Type: ' . $mime);
+    header('Content-Length: ' . filesize($path));
+    readfile($path);
+}
+
 function video_fallback_handle(string $path, string $method, string $body): bool
 {
     $path = trim($path, '/');
+    if ($path === 'api/v1/uploads' && strtoupper($method) === 'POST') {
+        video_fallback_upload_asset();
+        return true;
+    }
+
+    if (preg_match('#^api/v1/uploads/([^/]+)$#', $path, $matches) && strtoupper($method) === 'GET') {
+        video_fallback_uploaded_asset(rawurldecode($matches[1]));
+        return true;
+    }
+
     if ($path === 'api/v1/jobs' && strtoupper($method) === 'POST') {
         video_fallback_create_job($body);
         return true;
