@@ -79,6 +79,15 @@ const formatFileLabel = (file?: File | null) => {
   return `${file.name} · ${sizeMb.toFixed(sizeMb >= 10 ? 1 : 2)} MB`;
 };
 
+
+const maskDataUrlPayload = (_key: string, value: unknown) => {
+  if (typeof value === 'string' && value.startsWith('data:')) {
+    const [metadata] = value.split(',', 1);
+    return `${metadata || 'data:'},[uploaded data URL]`;
+  }
+  return value;
+};
+
 type FfmpegToolStatus = 'idle' | 'loading' | 'success' | 'error';
 
 type FfmpegToolState = {
@@ -491,7 +500,7 @@ export default function ApiTestToolsPage() {
       ...prev,
       status: 'loading',
       message: 'Submitting ffmpeg render job…',
-      result: JSON.stringify(payload, null, 2),
+      result: JSON.stringify(payload, maskDataUrlPayload, 2),
       log: '',
       downloadUrl: undefined,
     }));
