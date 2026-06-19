@@ -197,7 +197,12 @@ jobs:
           fi
 
           if [ -z "${SSH_PASSWORD}" ] && [ -z "${SSH_KEY}" ]; then
-            missing+=("SSH_PASSWORD or SSH_KEY")
+            missing+=("SSH_KEY (recommended) or SSH_PASSWORD")
+          fi
+
+          if [ -n "${SSH_PASSWORD}" ] && [ -z "${SSH_KEY}" ]; then
+            echo "⚠️ SSH_PASSWORD is configured without SSH_KEY. If the host disables password auth, appleboy/ssh-action will fail with: ssh: unable to authenticate, attempted methods [none password]."
+            echo "⚠️ Add the private key as the SSH_KEY secret, or explicitly enable password auth on the host."
           fi
 
           if [ ${#missing[@]} -ne 0 ]; then

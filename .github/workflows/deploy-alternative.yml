@@ -39,12 +39,49 @@ jobs:
           ls -la ${{ env.WEB_DIR }}/out/
           echo "File count: $(find ${{ env.WEB_DIR }}/out -type f | wc -l)"
 
+      - name: Validate deployment configuration
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          REMOTE_PATH: ${{ vars.REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          missing=()
+
+          if [ -z "${SSH_HOST}" ]; then
+            missing+=("SSH_HOST")
+          fi
+          if [ -z "${SSH_USER}" ]; then
+            missing+=("SSH_USER")
+          fi
+          if [ -z "${REMOTE_PATH}" ]; then
+            missing+=("REMOTE_PATH")
+          fi
+          if [ -z "${SSH_PASSWORD}" ] && [ -z "${SSH_KEY}" ]; then
+            missing+=("SSH_KEY (recommended) or SSH_PASSWORD")
+          fi
+
+          if [ -n "${SSH_PASSWORD}" ] && [ -z "${SSH_KEY}" ]; then
+            echo "⚠️ SSH_PASSWORD is configured without SSH_KEY. If the host disables password auth, appleboy/ssh-action will fail with: ssh: unable to authenticate, attempted methods [none password]."
+            echo "⚠️ Add the private key as the SSH_KEY secret, or explicitly enable password auth on the host."
+          fi
+
+          if [ ${#missing[@]} -ne 0 ]; then
+            printf '❌ Missing deployment configuration: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+          echo "✅ Deployment configuration looks good."
+
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
           script: |
             # Create backup of current deployment
@@ -60,6 +97,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
           source: "${{ env.WEB_DIR }}/out/*"
           target: ${{ vars.REMOTE_PATH }}
@@ -71,6 +109,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
           script: |
             # Set proper permissions for web files
