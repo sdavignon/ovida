@@ -196,13 +196,12 @@ jobs:
             missing+=("NEXT_PUBLIC_SUPABASE_ANON_KEY (repo variable or secret)")
           fi
 
-          if [ -z "${SSH_PASSWORD}" ] && [ -z "${SSH_KEY}" ]; then
-            missing+=("SSH_KEY (recommended) or SSH_PASSWORD")
+          if [ -z "${SSH_KEY}" ]; then
+            missing+=("SSH_KEY (password auth is disabled or rejected by the deploy host)")
           fi
 
-          if [ -n "${SSH_PASSWORD}" ] && [ -z "${SSH_KEY}" ]; then
-            echo "⚠️ SSH_PASSWORD is configured without SSH_KEY. If the host disables password auth, appleboy/ssh-action will fail with: ssh: unable to authenticate, attempted methods [none password]."
-            echo "⚠️ Add the private key as the SSH_KEY secret, or explicitly enable password auth on the host."
+          if [ -n "${SSH_PASSWORD}" ]; then
+            echo "⚠️ SSH_PASSWORD is ignored for deploys. The deploy host rejected password authentication; set SSH_KEY to a private key that is authorized on the host."
           fi
 
           if [ ${#missing[@]} -ne 0 ]; then
@@ -217,7 +216,6 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
           script: |
@@ -255,15 +253,7 @@ jobs:
 
           echo "📦 Uploading build to ${DEST}"
 
-          if [ -n "${SSH_PASSWORD}" ]; then
-            if ! command -v sshpass >/dev/null 2>&1; then
-              sudo apt-get update
-              sudo apt-get install -y sshpass
-            fi
-
-            sshpass -p "${SSH_PASSWORD}" \
-              scp -P "${SSH_PORT}" -o StrictHostKeyChecking=no -r "${LOCAL_BUILD_DIR}/." "${DEST}"
-          elif [ -n "${SSH_KEY}" ]; then
+          if [ -n "${SSH_KEY}" ]; then
             mkdir -p ~/.ssh
             KEY_FILE=~/.ssh/id_deploy
             printf '%s\n' "${SSH_KEY}" > "${KEY_FILE}"
@@ -272,7 +262,7 @@ jobs:
             scp -i "${KEY_FILE}" -P "${SSH_PORT}" -o StrictHostKeyChecking=no -r "${LOCAL_BUILD_DIR}/." "${DEST}"
             rm -f "${KEY_FILE}"
           else
-            echo "❌ No SSH credentials provided. Set SSH_PASSWORD or SSH_KEY."
+            echo "❌ No SSH_KEY provided. The deploy host rejected password authentication; set SSH_KEY to a private key that is authorized on the host."
             exit 1
           fi
 
@@ -296,19 +286,7 @@ jobs:
           DEST="${SSH_USER}@${SSH_HOST}:${REMOTE_DIR}/"
           echo "📦 Uploading API bundle to ${DEST}"
 
-          if [ -n "${SSH_PASSWORD}" ]; then
-            if ! command -v sshpass >/dev/null 2>&1; then
-              sudo apt-get update
-              sudo apt-get install -y sshpass
-            fi
-
-            sshpass -p "${SSH_PASSWORD}" \
-              scp -P "${SSH_PORT}" -o StrictHostKeyChecking=no "${API_BUNDLE_PATH}" "${DEST}"
-            if [ -f api-deploy/.api.env ]; then
-              sshpass -p "${SSH_PASSWORD}" \
-                scp -P "${SSH_PORT}" -o StrictHostKeyChecking=no api-deploy/.api.env "${DEST}"
-            fi
-          elif [ -n "${SSH_KEY}" ]; then
+          if [ -n "${SSH_KEY}" ]; then
             mkdir -p ~/.ssh
             KEY_FILE=~/.ssh/id_deploy_api
             printf '%s\n' "${SSH_KEY}" > "${KEY_FILE}"
@@ -320,7 +298,7 @@ jobs:
             fi
             rm -f "${KEY_FILE}"
           else
-            echo "❌ No SSH credentials provided. Set SSH_PASSWORD or SSH_KEY."
+            echo "❌ No SSH_KEY provided. The deploy host rejected password authentication; set SSH_KEY to a private key that is authorized on the host."
             exit 1
           fi
 
@@ -332,7 +310,6 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
           envs: REMOTE_PATH,API_REMOTE_PATH
@@ -426,7 +403,6 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
           envs: GENTLE_PORT
@@ -476,7 +452,6 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
           script: |
